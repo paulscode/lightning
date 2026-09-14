@@ -2337,6 +2337,14 @@ def test_withdraw_bech32m(node_factory, bitcoind):
              "bcrt1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesyga46z",
              "bcrt1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqc8gma6")
 
+    if TEST_NETWORK == 'regtest':
+        # Blake2b caps a non-OP_RETURN output script at MAX_OUTPUT_SCRIPT_SIZE (34),
+        # so the longer witness programs from BIP-350 can no longer be paid to.
+        def script_len(a):
+            spk = bitcoind.rpc.validateaddress(a)['scriptPubKey']
+            return len(bytes.fromhex(spk))
+        addrs = tuple(a for a in addrs if script_len(a) <= 34)
+
     for addr in addrs:
         l1.rpc.withdraw(addr, 10**3)
         bitcoind.generate_block(1, wait_for_mempool=1)

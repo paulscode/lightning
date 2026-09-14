@@ -56,6 +56,12 @@ void channel_type_set_zeroconf(struct channel_type *type)
 			COMPULSORY_FEATURE(OPT_ZEROCONF));
 }
 
+void channel_type_set_unified_sigs(struct channel_type *type)
+{
+	set_feature_bit(&type->features,
+			COMPULSORY_FEATURE(OPT_UNIFIED_SIGS));
+}
+
 void channel_type_set_scid_alias(struct channel_type *type)
 {
 	set_feature_bit(&type->features,

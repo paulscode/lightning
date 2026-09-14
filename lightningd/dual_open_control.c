@@ -3280,6 +3280,11 @@ static struct command_result *json_openchannel_init(struct command *cmd,
 	if (!info->ctype)
 		info->ctype = desired_channel_type(info, cmd->ld->our_features,
 						   peer->their_features);
+	/* We require the unified signer on new channels, so add it to a
+	 * caller-supplied type rather than refusing the request. */
+	else if (feature_offered(cmd->ld->our_features->bits[INIT_FEATURE],
+				 OPT_UNIFIED_SIGS))
+		channel_type_set_unified_sigs(info->ctype);
 
 	if (!cmd->ld->dev_any_channel_type &&
 	    !channel_type_accept(tmpctx,

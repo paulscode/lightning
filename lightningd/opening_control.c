@@ -1316,6 +1316,11 @@ static struct command_result *json_fundchannel_start(struct command *cmd,
 		return command_param_failed();
 
 	if (ctype) {
+		/* We require the unified signer on new channels, so add it to
+		 * a caller-supplied type rather than refusing the request. */
+		if (feature_offered(cmd->ld->our_features->bits[INIT_FEATURE],
+				    OPT_UNIFIED_SIGS))
+			channel_type_set_unified_sigs(ctype);
 		fc->channel_type = tal_steal(fc, ctype);
 		if (!cmd->ld->dev_any_channel_type &&
 		    !channel_type_accept(tmpctx,

@@ -859,8 +859,27 @@ static struct command_result *json_signpsbt(struct command *cmd,
 		return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
 				    "Could not add keypaths to PSBT?");
 
-	/* FIXME: hsm will sign almost anything, but it should really
-	 * fail cleanly (not abort!) and let us report the error here. */
+	/* The hsm signs wallet inputs under the unified digest only, and
+	 * refusing there is fatal, so catch a caller-supplied sighash here
+	 * where we can still report it. */
+	if (!is_elements(chainparams)) {
+		for (size_t i = 0; i < tal_count(utxos); i++) {
+			for (size_t j = 0; j < psbt->num_inputs; j++) {
+				if (!wally_psbt_input_spends(&psbt->inputs[j],
+							     &utxos[i]->outpoint))
+					continue;
+				if (psbt->inputs[j].sighash == 0
+				    || psbt->inputs[j].sighash == (SIGHASH_ALL | SIGHASH_UNIFIED))
+					continue;
+				return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
+						    "Input %zu has sighash 0x%02x:"
+						    " wallet inputs must use"
+						    " SIGHASH_ALL|SIGHASH_UNIFIED",
+						    j, psbt->inputs[j].sighash);
+			}
+		}
+	}
+
 	hsm_utxos = utxos_to_hsm_utxos(tmpctx, utxos);
 	u8 *msg = towire_hsmd_sign_withdrawal(cmd, hsm_utxos, psbt);
 

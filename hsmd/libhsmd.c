@@ -621,7 +621,7 @@ static bool sign_unified_wallet_input(struct wally_psbt *psbt, size_t i,
 
 /* Find our inputs by the pubkey associated with the inputs, and
  * add a partial sig for each */
-static void sign_our_inputs(struct hsm_utxo **utxos, struct wally_psbt *psbt)
+static bool sign_our_inputs(struct hsm_utxo **utxos, struct wally_psbt *psbt)
 {
 	bool is_cache_enabled = false;
 	for (size_t i = 0; i < tal_count(utxos); i++) {
@@ -661,18 +661,25 @@ static void sign_our_inputs(struct hsm_utxo **utxos, struct wally_psbt *psbt)
 							scriptpubkey_p2wsh(psbt, wscript),
 							utxo->amount);
 			}
-			/* New wallet/funding signatures use unified sighash by default. */
+			/* New wallet/funding signatures use unified sighash by
+			 * default. A caller-supplied PSBT can ask for anything
+			 * else, so refuse it rather than signing under the
+			 * legacy digest, and report it rather than dying. */
 			if (!is_elements(chainparams) && !psbt->inputs[j].sighash)
 				if (wally_psbt_input_set_sighash(&psbt->inputs[j],
-					SIGHASH_ALL | SIGHASH_UNIFIED) != WALLY_OK)
-					hsmd_status_failed(STATUS_FAIL_MASTER_IO, "Cannot set unified wallet sighash");
-			if (!is_elements(chainparams) && psbt->inputs[j].sighash != (SIGHASH_ALL | SIGHASH_UNIFIED))
-				hsmd_status_failed(STATUS_FAIL_MASTER_IO, "Wallet signing requires unified sighash");
-			if (psbt->inputs[j].sighash & SIGHASH_UNIFIED) {
-				if (!sign_unified_wallet_input(psbt, j, utxo, &privkey, &pubkey))
-					hsmd_status_failed(STATUS_FAIL_MASTER_IO,
-						"Invalid or unsupported unified PSBT input %zu", j);
+					SIGHASH_ALL | SIGHASH_UNIFIED) != WALLY_OK) {
+					sodium_memzero(&privkey, sizeof(privkey));
+					return false;
+				}
+			if (!is_elements(chainparams) && psbt->inputs[j].sighash != (SIGHASH_ALL | SIGHASH_UNIFIED)) {
 				sodium_memzero(&privkey, sizeof(privkey));
+				return false;
+			}
+			if (psbt->inputs[j].sighash & SIGHASH_UNIFIED) {
+				bool ok = sign_unified_wallet_input(psbt, j, utxo, &privkey, &pubkey);
+				sodium_memzero(&privkey, sizeof(privkey));
+				if (!ok)
+					return false;
 				continue;
 			}
 			tal_wally_start();
@@ -708,6 +715,7 @@ static void sign_our_inputs(struct hsm_utxo **utxos, struct wally_psbt *psbt)
 			tal_wally_end(psbt);
 		}
 	}
+	return true;
 }
 
 static void check_overgrind(const struct bitcoin_signature *sig)
@@ -1486,7 +1494,9 @@ static u8 *handle_sign_withdrawal_tx(struct hsmd_client *c, const u8 *msg_in)
 					   &utxos, &psbt))
 		return hsmd_status_malformed_request(c, msg_in);
 
-	sign_our_inputs(utxos, psbt);
+	if (!sign_our_inputs(utxos, psbt))
+		return hsmd_status_bad_request(c, msg_in,
+					       "Cannot sign wallet inputs");
 
 	return towire_hsmd_sign_withdrawal_reply(NULL, psbt);
 }
@@ -1869,7 +1879,9 @@ static u8 *handle_sign_anchorspend(struct hsmd_client *c, const u8 *msg_in)
 		return hsmd_status_malformed_request(c, msg_in);
 
 	/* Sign all the UTXOs */
-	sign_our_inputs(utxos, psbt);
+	if (!sign_our_inputs(utxos, psbt))
+		return hsmd_status_bad_request(c, msg_in,
+					       "Cannot sign wallet inputs");
 
 	get_channel_seed(&peer_id, dbid, &seed);
 	derive_basepoints(&seed, &local_funding_pubkey, NULL, &secrets, NULL);
@@ -1937,7 +1949,9 @@ static u8 *handle_sign_htlc_tx_mingle(struct hsmd_client *c, const u8 *msg_in)
 
 	/* Sign all the UTXOs (htlc_inout input is already signed with
 	 * SIGHASH_SINGLE|SIGHASH_ANYONECANPAY) */
-	sign_our_inputs(utxos, psbt);
+	if (!sign_our_inputs(utxos, psbt))
+		return hsmd_status_bad_request(c, msg_in,
+					       "Cannot sign wallet inputs");
 
 	return towire_hsmd_sign_htlc_tx_mingle_reply(NULL, psbt);
 }

@@ -79,8 +79,8 @@ DOWNLOAD='sudo apt -y --no-install-recommends --reinstall -d install'
 PKGS='autoconf automake libtool make gcc libsqlite3-dev zlib1g-dev libsodium-dev'
 INST='sudo dpkg -i'
 
-case "$PLATFORM" in
-    Ubuntu-22.04)
+case "$PLATFORM-$ARCH" in
+    Ubuntu-22.04-amd64)
 	cat > /tmp/SHASUMS <<EOF
 96b528889794c4134015a63c75050f93d8aecdf5e3f2a20993c1433f4c61b80e  /var/cache/apt/archives/autoconf_2.71-2_all.deb
 db854b9af0f94eded5039830177f57a5b2d529f76e2b5b0de8ec0b26f7aedc83  /var/cache/apt/archives/gcc-11-base_11.2.0-19ubuntu1_amd64.deb
@@ -104,7 +104,7 @@ ddbadadcbfe2669de79eabac36a990f0f1666bb86a87d1a9cd56fd72620ca2db  /var/cache/apt
 59e3890fc8407bcf8ccc9f709d6513156346d5c942e8c624dc90435e58f6f978  /var/cache/apt/archives/automake_1%3a1.16.5-1.3_all.deb
 EOF
 	;;
-    Ubuntu-24.04)
+    Ubuntu-24.04-amd64)
 	cat > /tmp/SHASUMS <<EOF
 cc3f9f7a1e576173fb59c36652c0a67c6426feae752b352404ba92dfcb1b26c9  /var/cache/apt/archives/autoconf_2.71-3_all.deb
 0e0bb8b25153ed1c44ab92bc219eed469fcb5820c5c0bc6454b2fd366a33d3ee  /var/cache/apt/archives/gcc_4%3a13.2.0-7ubuntu1_amd64.deb
@@ -115,7 +115,7 @@ d23577c43936fedd8c4fa1337a6e960a6e71e94ac164d7a15c46ea96bf21265d  /var/cache/apt
 0b93d16d7498f092fa3070fbbad28cdbc6b3d640f1a7681b96fc37f20d1219f1  /var/cache/apt/archives/zlib1g_1%3a1.3.dfsg-3.1ubuntu2_amd64.deb
 EOF
 	;;
-    Ubuntu-26.04)
+    Ubuntu-26.04-amd64)
     cat > /tmp/SHASUMS <<EOF
 9edd0db0fa94580ab013529d6842a8e89b8ed22ab337da5e95cbb43971978815  /var/cache/apt/archives/autoconf_2.72-3.1ubuntu2_all.deb
 1a443abf03a5af97f4493405e22eba52fd6935a8b0583ac32fb88b3727563e53  /var/cache/apt/archives/automake_1%3a1.18.1-3build1_all.deb
@@ -127,8 +127,44 @@ a86f39d57a32b7c919c0ad721fc2f17ab533a42fda348c8d81a4eea1577a014f  /var/cache/apt
 601b9f92a04ea9ff7de6f60f60c34f2e2743f9c478125ac9e413f29a1fa728d9  /var/cache/apt/archives/zlib1g-dev_1%3a1.3.dfsg+really1.3.1-1ubuntu3_amd64.deb
 EOF
 	;;
+    Ubuntu-22.04-arm64)
+	cat > /tmp/SHASUMS <<EOF
+96b528889794c4134015a63c75050f93d8aecdf5e3f2a20993c1433f4c61b80e  /var/cache/apt/archives/autoconf_2.71-2_all.deb
+59e3890fc8407bcf8ccc9f709d6513156346d5c942e8c624dc90435e58f6f978  /var/cache/apt/archives/automake_1%3a1.16.5-1.3_all.deb
+426deed543cc32f388ad8336354e312fb76a47450194d2d775d855ad5878f82e  /var/cache/apt/archives/gcc_4%3a11.2.0-1ubuntu1_arm64.deb
+142fd1e8549e94c42327bc3d50cc55aae4117629e4c1590721780cffa0a0c465  /var/cache/apt/archives/libsodium-dev_1.0.18-1build2_arm64.deb
+ba7d636c4c67dd0831eb86ef1ab27aa3eb85f508031b283401aaa35cf447e8d1  /var/cache/apt/archives/libsqlite3-dev_3.37.2-2_arm64.deb
+fb994bc0152f4e77a791b51bc54fd5e38963aa6473e60c45369ef373b6119124  /var/cache/apt/archives/libtool_2.4.6-15build2_all.deb
+560a5105bbe3bd33a8c55f10006e3707b77311d19e5928e841f5ee84590a80c6  /var/cache/apt/archives/make_4.3-4.1build1_arm64.deb
+2293f3feacd87c471468b36b09f58deec22f74a861bf39265884c3b7b353bea3  /var/cache/apt/archives/zlib1g-dev_1%3a1.2.11.dfsg-2ubuntu9_arm64.deb
+EOF
+	;;
+    Ubuntu-24.04-arm64)
+	cat > /tmp/SHASUMS <<EOF
+cc3f9f7a1e576173fb59c36652c0a67c6426feae752b352404ba92dfcb1b26c9  /var/cache/apt/archives/autoconf_2.71-3_all.deb
+5ae9a98e73545002cd891f028859941af2a3c760cb6190e635c7ef36953912de  /var/cache/apt/archives/automake_1%3a1.16.5-1.3ubuntu1_all.deb
+11dec7614bba0bd5b7cfad6a9890a4680dac5de6908ae625dd07105679bad67c  /var/cache/apt/archives/gcc_4%3a13.2.0-7ubuntu1_arm64.deb
+afc7b1fedc4316d524aba2d7e5a079c3f7e622b88445b8b8bab2243f6a91c2d5  /var/cache/apt/archives/libsodium-dev_1.0.18-1build3_arm64.deb
+66abecbe7d7e9abfa6184f2d6fa581e62b67e90660c690128b06a8f2f7e12a8a  /var/cache/apt/archives/libsqlite3-dev_3.45.1-1ubuntu2_arm64.deb
+9d1d707179675d38e024bb13613b1d99e0d33fa6c45e5f3bcba19340781781d3  /var/cache/apt/archives/libtool_2.4.7-7build1_all.deb
+3bbbf5d426bc68fc232fc4e20f135aaf3eb76a514839acf82eeffa0dce9c81d4  /var/cache/apt/archives/make_4.3-4.1build2_arm64.deb
+3ca97d064a8f3dbe3fed05b6132ba0890237d26fae16060c1fb8ea22c2a846e9  /var/cache/apt/archives/zlib1g-dev_1%3a1.3.dfsg-3.1ubuntu2_arm64.deb
+EOF
+	;;
+    Ubuntu-26.04-arm64)
+	cat > /tmp/SHASUMS <<EOF
+9edd0db0fa94580ab013529d6842a8e89b8ed22ab337da5e95cbb43971978815  /var/cache/apt/archives/autoconf_2.72-3.1ubuntu2_all.deb
+1a443abf03a5af97f4493405e22eba52fd6935a8b0583ac32fb88b3727563e53  /var/cache/apt/archives/automake_1%3a1.18.1-3build1_all.deb
+dde3a5ce12ecee04b40220d80335123f0070bb154f51b75338e08b69588318bb  /var/cache/apt/archives/gcc_4%3a15.2.0-5ubuntu1_arm64.deb
+9299e0c7e4857944e397114e65df342d03c96d976061d4b38d481f2769cf83c4  /var/cache/apt/archives/libsodium-dev_1.0.18-2_arm64.deb
+2763a999c733ac5a153bd12ad887754a4c3455ec1167aa3437cce6e85731a01a  /var/cache/apt/archives/libsqlite3-dev_3.46.1-9_arm64.deb
+5b3146cd9d380e4725fc5b5e54795ae1f72d165d93e68ce29076b69762661fd4  /var/cache/apt/archives/libtool_2.5.4-9_all.deb
+f6221e4b7865332ef903bbfb5763c8e2c0aa98ecf2ee78cc73ba59ad6504d077  /var/cache/apt/archives/make_4.4.1-3_arm64.deb
+6225185052192b092a309911f2f831d61d945e7ae17b13a63f4a5494319e4ea7  /var/cache/apt/archives/zlib1g-dev_1%3a1.3.dfsg+really1.3.1-1ubuntu3_arm64.deb
+EOF
+	;;
     *)
-	echo Unsupported platform "$PLATFORM" >&2
+	echo Unsupported platform "$PLATFORM" for arch "$ARCH" >&2
 	exit 1
 	;;
 esac

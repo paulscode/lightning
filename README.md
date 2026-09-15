@@ -1,3 +1,57 @@
+# Core Lightning with BLAKE2b proof of work
+
+This is an unofficial fork of [Core Lightning](https://github.com/ElementsProject/lightning) that follows the BLAKE2b proof-of-work hardfork of Bitcoin. It is not affiliated with the Core Lightning project. Upstream has not adopted the fork, so use it instead if that is what you want.
+
+> **Not reviewed by upstream.** This one holds keys and funds. It changes how transactions are signed, and the feature numbers it uses on the wire are provisional. Read *Before opening channels* below. Everything under the divider is upstream's documentation and describes Core Lightning rather than this fork.
+
+## What differs from upstream
+
+- **BLAKE2b block headers.** Parses the 164 byte v2 header and takes its BLAKE2b hash as the block id. A header announces itself through the top bit of its version word, so no activation height is compiled in and nothing has to be configured per network. Without this a node cannot parse the activation block and stops there.
+- **Unified signatures.** Wallet transactions and new channels are signed with the fork's opt-in `SIGHASH_UNIFIED` digest, so a channel funded after the fork from post-fork coins cannot be replayed onto the old rules. Built on [connorslab's](https://github.com/connorslab/lightning) unified-sigs work.
+- **A required peer feature bit.** The node advertises `option_blake2b` as compulsory, so it will not connect to a Lightning node that has not adopted the fork.
+- **Downgrades are refused.** A build without unified signing computes a different signature hash and could not close the channels this one opens, so `lightning-downgrade` stops before touching the database.
+
+## Before opening channels
+
+The required feature bit means you **cannot cooperatively close a channel opened before the fork** with a counterparty still on the old rules.
+
+The feature numbers are provisional. Bits 68 and 70 are not registered BOLT allocations and are expected to move; an alternative proposal signals odd in `init` with numbers at or above 32768, and the two are mutually exclusive. Channels opened under the current numbering may have to be closed and reopened once the numbers are settled.
+
+Fund channels only from coins received after the fork. A channel funded from a pre-fork UTXO has a funding transaction valid under both rule sets, which reopens the exposure unified signing exists to close.
+
+## Activation
+
+| Network | Height |
+| --- | --- |
+| mainnet | 961,640 |
+| testnet4 | 150,308 |
+
+These are the heights Bitcoin Knots activates at, listed for reference only. This fork keys off the header itself rather than a height, so it needs no updating if they change.
+
+## Building
+
+Unchanged from upstream, see [Getting Started](#getting-started) below. Clone this repository rather than upstream's:
+
+```bash
+git clone https://github.com/privkeyio/lightning.git
+```
+
+## Releases
+
+Published under [Releases](https://github.com/privkeyio/lightning/releases) with signed checksum files covering every artifact:
+
+```bash
+gpg --import privkeyio-signing-key.asc
+gpg --verify SHA256SUMS-*.asc SHA256SUMS-*
+sha256sum -c SHA256SUMS-* --ignore-missing
+```
+
+The signing key is `A47D 99B6 DB0D 715D 40C5 9A20 23AE 8A8E A7E2 4E38`.
+
+For StartOS, the packaged build lives at [privkeyio/cln-startos](https://github.com/privkeyio/cln-startos).
+
+---
+
 # Core Lightning (CLN): A specification compliant Lightning Network implementation in C
 
 Core Lightning (previously c-lightning) is a lightweight, highly customizable and [standard compliant][std] implementation of the Lightning Network protocol.

@@ -1,6 +1,6 @@
 # Core Lightning with BLAKE2b proof of work
 
-This is an unofficial fork of [Core Lightning](https://github.com/ElementsProject/lightning) that follows the BLAKE2b proof-of-work hardfork of Bitcoin. It is not affiliated with the Core Lightning project. Upstream has not adopted the fork, so use it instead if that is what you want.
+This is an unofficial fork of [Core Lightning](https://github.com/ElementsProject/lightning) that follows the BLAKE2b proof-of-work hardfork of Bitcoin. It is not affiliated with the Core Lightning project. Upstream does not follow the fork, so use it instead if that is what you want.
 
 > **Not audited. Use at your own risk, and no warranty of any kind, see the [BSD-MIT license](LICENSE).** It holds keys and funds, it changes how transactions are signed, and the feature numbers it uses on the wire are provisional. Read *Before opening channels* below. Everything under the divider is upstream's documentation and describes Core Lightning rather than this fork.
 
@@ -8,7 +8,7 @@ This is an unofficial fork of [Core Lightning](https://github.com/ElementsProjec
 
 - **BLAKE2b block headers.** Parses the 164 byte v2 header and takes its BLAKE2b hash as the block id. A header announces itself through the top bit of its version word, so no activation height is compiled in and nothing has to be configured per network. Without this a node cannot parse the activation block and stops there.
 - **Unified signatures.** Wallet transactions and new channels are signed with the fork's opt-in `SIGHASH_UNIFIED` digest, so a channel funded after the fork from post-fork coins is signed in a way the pre-fork rules reject, and cannot be replayed on the SHA256d chain. Built on [connorslab's](https://github.com/connorslab/lightning) unified-sigs work.
-- **A required peer feature bit.** The node advertises `option_blake2b` as compulsory, so it will not connect to a Lightning node that has not adopted the fork.
+- **A required peer feature bit.** The node advertises `option_blake2b` as compulsory, so it will not connect to a Lightning node that does not follow the fork.
 - **Downgrades are refused.** A build without unified signing computes a different signature hash and could not close the channels this one opens, so `lightning-downgrade` stops before touching the database.
 
 ## Before opening channels

@@ -17,7 +17,7 @@ The required feature bit means you **cannot cooperatively close a channel opened
 
 The feature numbers are provisional. Bits 68 and 70 are not registered BOLT allocations and are expected to move; an alternative proposal signals odd in `init` with numbers at or above 32768, and the two are mutually exclusive. Channels opened under the current numbering may have to be closed and reopened once the numbers are settled.
 
-Fund channels only from coins received past activation. A channel funded from a pre-fork UTXO has a funding transaction valid under both rule sets, so it is valid under both rule sets, which reopens the exposure unified signing exists to close.
+Fund channels only from coins received past activation. A channel funded from a pre-fork UTXO has a funding transaction valid under both rule sets, which reopens the exposure unified signing exists to close.
 
 ## Activation
 

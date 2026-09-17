@@ -17,6 +17,11 @@ struct chainparams {
 	 */
 	const char *onchain_hrp;
 	const char *lightning_hrp;
+	/* The height at which Bitcoin's proof of work changed, or 0 on a
+	 * network where it did not. A channel funded below it is also visible
+	 * to nodes which have not upgraded, and this node does not see what
+	 * they do with it: see the gossip rule in gossmap_manage.c. */
+	const u32 blake2b_activation_height;
 	/*'bip70_name' is corresponding to the 'chain' field of
 	 * the API 'getblockchaininfo' */
 	const char *bip70_name;

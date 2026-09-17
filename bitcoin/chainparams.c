@@ -29,6 +29,7 @@ const struct chainparams networks[] = {
     {.network_name = "bitcoin",
      .onchain_hrp = "bc",
      .lightning_hrp = "bc",
+     .blake2b_activation_height = 961640,
      .bip70_name = "main",
      .genesis_blockhash = {{{.u.u8 = {0x6f, 0xe2, 0x8c, 0x0a, 0xb6, 0xf1, 0xb3,
 				      0x72, 0xc1, 0xa6, 0xa2, 0x46, 0xae, 0x63,

@@ -22,6 +22,10 @@ struct chainparams {
 	 * still accepts it, and legacy bookkeeper events were written with
 	 * it. */
 	const char *legacy_lightning_hrp;
+	/* The height at which this chain changed its proof of work, or 0 if
+	 * it never did. A channel funded below it exists for nodes that did
+	 * not upgrade too: see the gossip rule in gossmap_manage.c. */
+	const u32 blake2b_activation_height;
 	/*'bip70_name' is corresponding to the 'chain' field of
 	 * the API 'getblockchaininfo' */
 	const char *bip70_name;

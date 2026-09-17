@@ -17,6 +17,11 @@ struct chainparams {
 	 */
 	const char *onchain_hrp;
 	const char *lightning_hrp;
+	/* The invoice prefix this network had before the BLAKE2b chain took
+	 * one of its own (doc/blake2b-chain-identity.md), or NULL. Decoding
+	 * still accepts it, and legacy bookkeeper events were written with
+	 * it. */
+	const char *legacy_lightning_hrp;
 	/*'bip70_name' is corresponding to the 'chain' field of
 	 * the API 'getblockchaininfo' */
 	const char *bip70_name;

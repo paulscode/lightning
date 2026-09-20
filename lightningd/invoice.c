@@ -1378,8 +1378,17 @@ static struct command_result *json_listinvoices(struct command *cmd,
 						 cmd->ld->our_features, NULL,
 						 &fail);
 			if (!b12 || !b12->invoice_payment_hash) {
+				/* Carry the reason. "Invalid invstring" on
+				 * its own tells a user who pasted an invoice
+				 * minted by a node which has not upgraded
+				 * nothing at all, and under option_blake2b
+				 * the reason is a feature-bit message they
+				 * would never guess. pay.c has always done
+				 * this. */
 				return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
-						    "Invalid invstring");
+						    "Invalid invstring: %s",
+						    fail ? fail
+						    : "not bolt11 or bolt12");
 			}
 			payment_hash = b12->invoice_payment_hash;
 		}

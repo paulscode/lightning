@@ -1650,9 +1650,10 @@ def test_gossip_store_compact(node_factory, bitcoind):
     # Now compact store.
     l2.rpc.call('dev-compact-gossip-store')
     # Splicing changes features, making this size 2365 bytes -> 2065 bytes.
-    # Bit 68 in node_announcement widens the feature bitmap, adding 3 more.
-    l2.daemon.wait_for_logs(['gossipd: compaction done: 236[258] -> 206[258] bytes',
-                             'connectd: Reopened gossip_store, reduced to offset 206[258]'])
+    # option_blake2b is bit 512, so each node_announcement carries a 65-byte
+    # feature bitmap instead of 9, adding 58 bytes apiece: three here.
+    l2.daemon.wait_for_logs(['gossipd: compaction done: 25(36|39|42) -> 22(36|39|42) bytes',
+                             'connectd: Reopened gossip_store, reduced to offset 22(36|39|42)'])
 
     # Should still be connected.
     time.sleep(1)
@@ -1703,13 +1704,13 @@ def test_gossip_store_compact_while_extending(node_factory, bitcoind, executor):
         f.write(b'')
 
     fut.result(TIMEOUT)
-    # Exact gossip size varies with SPLICING.
+    # Exact gossip size varies with SPLICING; four node_announcements here.
     l1.daemon.wait_for_logs(['gossipd: compaction done',
-                             'connectd: Reopened gossip_store, reduced to offset 22(4[59]|53)'])
+                             'connectd: Reopened gossip_store, reduced to offset 24(77|81|85)'])
 
     post_channels = l1.rpc.listchannels()
     post_nodes = sorted(l1.rpc.listnodes()['nodes'], key=lambda n: n['nodeid'])
-    l1.daemon.wait_for_log('topology: Reopened gossip_store, reduced to offset 22(4[59]|53)')
+    l1.daemon.wait_for_log('topology: Reopened gossip_store, reduced to offset 24(77|81|85)')
 
     assert post_channels == pre_channels
     assert post_nodes == pre_nodes

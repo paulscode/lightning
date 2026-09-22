@@ -21,8 +21,9 @@ int main(int argc, char *argv[])
 	assert(features_unsupported(blake, empty, INIT_FEATURE) == -1);
 	for (size_t i = BOLT11_FEATURE; i <= BOLT12_INVOICE_FEATURE; i++)
 		assert(tal_bytelen(blake->bits[i]) == 0);
-	assert(OPT_BLAKE2B == 68);
-	assert(tal_bytelen(blake->bits[INIT_FEATURE]) == 9);
+	assert(OPT_BLAKE2B == 512);
+	/* A vector is as long as its highest set bit. */
+	assert(tal_bytelen(blake->bits[INIT_FEATURE]) == 65);
 	assert(!feature_offered(blake->bits[CHANNEL_TYPE_FEATURE], OPT_BLAKE2B));
 	assert(!feature_offered(blake->bits[CHANNEL_FEATURE], OPT_BLAKE2B));
 	/* A BOLT11 field holds at most 1023 five-bit groups. */

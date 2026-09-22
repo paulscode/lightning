@@ -1769,7 +1769,7 @@ def test_zeroconf_open(bitcoind, node_factory):
     # plugin
     ret = l2.rpc.fundchannel(l3.info['id'], 'all', mindepth=0)
     if TEST_NETWORK == 'regtest':
-        channel_type = {'bits': [12, 22, 50, 70], 'names': ['static_remotekey/even', 'anchors/even', 'zeroconf/even', 'unified_sigs/even']}
+        channel_type = {'bits': [12, 22, 50, 514], 'names': ['static_remotekey/even', 'anchors/even', 'zeroconf/even', 'unified_sigs/even']}
     else:
         channel_type = {'bits': [12, 50], 'names': ['static_remotekey/even', 'zeroconf/even']}
     assert ret['channel_type'] == channel_type
@@ -2738,7 +2738,7 @@ def test_opening_explicit_channel_type(node_factory, bitcoind):
     ANCHORS_OLD = 20
     ANCHORS_ZERO_FEE_HTLC_TX = 22
     ZEROCONF = 50
-    UNIFIED_SIGS = 70
+    UNIFIED_SIGS = 514
 
     for zeroconf in ([], [ZEROCONF]):
         for ctype in ([STATIC_REMOTEKEY, UNIFIED_SIGS],
@@ -2786,7 +2786,7 @@ def test_opening_explicit_channel_type(node_factory, bitcoind):
     l1.start()
     l1.connect(l2)
 
-    with pytest.raises(RpcError, match=r'They sent ERROR .*: You gave bad parameters: Did not support channel_type \[12,20,70\]'):
+    with pytest.raises(RpcError, match=r'They sent ERROR .*: You gave bad parameters: Did not support channel_type \[12,20,514\]'):
         l1.rpc.fundchannel_start(l2.info['id'], FUNDAMOUNT, channel_type=[STATIC_REMOTEKEY, ANCHORS_OLD, UNIFIED_SIGS])
 
     # Now make l2 accept it!
@@ -3238,7 +3238,7 @@ def test_openchannel2_inflight_limit(node_factory, bitcoind):
 
     # static_remotekey + anchors, plus unified_sigs where this chain has it:
     # an open naming a channel type the node won't accept is refused outright.
-    channel_type_tlv = opening_tlvs([12, 22, 70] if TEST_NETWORK == 'regtest'
+    channel_type_tlv = opening_tlvs([12, 22, 514] if TEST_NETWORK == 'regtest'
                                     else [12, 22])
 
     # dualopend doesn't listen for the disconnect, so connectd has to force it.
@@ -3356,9 +3356,9 @@ def test_zero_length_upfront_shutdown_script(node_factory, bitcoind):
 
     # No close_to, so openingd substitutes the zero-length script.
     ret = l1.rpc.fundchannel(l2.info['id'], FUNDAMOUNT, push_msat=0,
-                             channel_type=[STATIC_REMOTEKEY] + ([70] if TEST_NETWORK == 'regtest' else []))
+                             channel_type=[STATIC_REMOTEKEY] + ([514] if TEST_NETWORK == 'regtest' else []))
     cid = ret['channel_id']
-    assert ret['channel_type']['bits'] == [STATIC_REMOTEKEY] + ([70] if TEST_NETWORK == 'regtest' else [])
+    assert ret['channel_type']['bits'] == [STATIC_REMOTEKEY] + ([514] if TEST_NETWORK == 'regtest' else [])
     assert ANCHORS_ZERO_FEE_HTLC_TX not in ret['channel_type']['bits']
 
     # Hang on to commitment 0, before anything moves the channel off it.

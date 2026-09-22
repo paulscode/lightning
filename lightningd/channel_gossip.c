@@ -1,4 +1,5 @@
 #include "config.h"
+#include <bitcoin/chainparams.h>
 #include <ccan/array_size/array_size.h>
 #include <ccan/cast/cast.h>
 #include <common/clock_time.h>
@@ -754,6 +755,27 @@ static void send_channel_announcement(struct channel *channel)
 	struct lightningd *ld = channel->peer->ld;
 	const u8 *ca, *msg;
 	struct channel_gossip *cg = channel->channel_gossip;
+
+	/* BOLT-blake2b #7:
+	 *   - if the `short_channel_id`'s block height is less than 961,640,
+	 *     the first block under the BLAKE2b rules:
+	 *     - MUST ignore the message ...
+	 *     - MUST apply this to a `channel_announcement` it generates
+	 *       itself.
+	 *
+	 * gossipd drops such an announcement on the way in, but
+	 * broadcast_new_gossip does not wait for that answer before sending
+	 * the message to every peer, so without this the announcement leaves
+	 * this node anyway. Stop before asking hsmd to sign it. */
+	if (chainparams->blake2b_activation_height != 0
+	    && short_channel_id_blocknum(*channel->scid)
+	    < chainparams->blake2b_activation_height) {
+		log_debug(channel->log,
+			  "Not announcing %s: funded before the BLAKE2b"
+			  " activation height",
+			  fmt_short_channel_id(tmpctx, *channel->scid));
+		return;
+	}
 
  	ca = create_channel_announcement(tmpctx, channel, *channel->scid,
 					 NULL, NULL,

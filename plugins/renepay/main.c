@@ -258,6 +258,12 @@ static struct command_result *json_renepay(struct command *cmd, const char *buf,
 			return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
 					    "Invalid bolt11 invoice: %s", fail);
 
+		fail = bolt11_check_blake2b(plugin_feature_set(cmd->plugin),
+					    b11);
+		if (fail)
+			return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
+					    "%s", fail);
+
 		/* Sanity check */
 		if (feature_offered(b11->features, OPT_VAR_ONION) &&
 		    !b11->payment_secret)

@@ -104,6 +104,18 @@ struct bolt11 *bolt11_decode_nosig(const tal_t *ctx, const char *str,
 				   bool *have_n,
 				   const char **fail);
 
+/* BOLT-blake2b #11:
+ * A reader:
+ *...
+ *   - if it follows the BLAKE2b proof of work rules and `option_blake2b` is
+ *     not set:
+ *     - MUST NOT attempt the payment.
+ *
+ * Returns the reason not to, or NULL if it may be paid.
+ */
+const char *bolt11_check_blake2b(const struct feature_set *our_features,
+				 const struct bolt11 *b11);
+
 /* Initialize an empty bolt11 struct with optional amount */
 struct bolt11 *new_bolt11(const tal_t *ctx,
 			  const struct amount_msat *msat TAKES);

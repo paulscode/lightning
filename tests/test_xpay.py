@@ -292,7 +292,7 @@ def test_xpay_fake_channeld(node_factory, bitcoind, chainparams, slow_mode):
                                        f"currency={chainparams['bip173_prefix']}",
                                        f"p={hash_hex}",
                                        f"s={'00' * 32}",
-                                       "9=020000",  # option_basic_mpp
+                                       f"9={BLAKE2B_MPP}",  # basic_mpp, blake2b
                                        f"d=Paying node {n}",
                                        f"amount={AMOUNT}msat"]).decode('utf-8').strip()
         assert l1.rpc.decode(inv)['payee'] == nodeids[n]
@@ -325,7 +325,7 @@ def test_xpay_fake_channeld(node_factory, bitcoind, chainparams, slow_mode):
                                        "encode",
                                        n.to_bytes(length=8, byteorder=sys.byteorder).hex() + '01' * 24,
                                        f"p={hash_hex}",
-                                       "9=020000",  # option_basic_mpp
+                                       f"9={BLAKE2B_MPP}",  # basic_mpp, blake2b
                                        f"s={'00' * 32}",
                                        f"d=Paying node {n}",
                                        f"amount={AMOUNT}msat"]).decode('utf-8').strip()
@@ -638,6 +638,7 @@ def test_xpay_no_mpp(node_factory, chainparams):
                                           f"currency={chainparams['bip173_prefix']}",
                                           f"p={no_mpp['payment_hash']}",
                                           f"s={no_mpp['payment_secret']}",
+                                          f"9={BLAKE2B}",
                                           f"d=Paying l3 without mpp",
                                           f"amount={AMOUNT}"]).decode('utf-8').strip()
 

@@ -945,6 +945,12 @@ static struct command_result *json_pay(struct command *cmd,
 			return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
 					    "Invalid bolt11: %s", b11_fail);
 
+		b11_fail = bolt11_check_blake2b(plugin_feature_set(cmd->plugin),
+						b11);
+		if (b11_fail)
+			return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
+					    "%s", b11_fail);
+
 		invmsat = b11->msat;
 		invexpiry = b11->timestamp + b11->expiry;
 

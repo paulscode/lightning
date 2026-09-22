@@ -2738,6 +2738,11 @@ static struct command_result *xpay_core(struct command *cmd,
 			return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
 					    "Invalid bolt11 invoice: %s", err);
 
+		err = bolt11_check_blake2b(plugin_feature_set(cmd->plugin), b11);
+		if (err)
+			return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
+					    "%s", err);
+
 		if (localinvreqid)
 			return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
 					    "Cannot use localinvreqid with BOLT11 payment");

@@ -2864,7 +2864,12 @@ def test_error_returns_blockheight(node_factory, bitcoind):
 
 @unittest.skipIf(TEST_NETWORK != 'regtest', "Invoice is network specific")
 def test_pay_no_secret(node_factory, bitcoind):
-    l1, l2 = node_factory.line_graph(2, wait_for_announce=True, opts={'old_hsmsecret': True})
+    # These invoices do not set option_blake2b, so an upgraded node refuses to
+    # pay them before it ever looks at the payment secret: run both ends
+    # without the bits.
+    l1, l2 = node_factory.line_graph(2, wait_for_announce=True,
+                                     opts={'old_hsmsecret': True,
+                                           'dev-force-features': ['-514', '-512']})
 
     l2.rpc.invoice(100000, "test_pay_no_secret", "test_pay_no_secret",
                    preimage='00' * 32, expiry=2000000000)
@@ -5429,6 +5434,7 @@ def test_payerkey(node_factory, old_hsmsecret):
 
     # Now we are supposed to put invreq_payer_id inside invreq, and lightningd
     # checks the derivation as a courtesy.  Fortunately, invreq_payer_id is last
+
     for n, k in zip(nodes, expected_keys):
         # BOLT #12:
         #     1. type: 88 (`invreq_payer_id`)

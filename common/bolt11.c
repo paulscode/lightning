@@ -974,6 +974,19 @@ struct bolt11 *bolt11_decode_nosig(const tal_t *ctx, const char *str,
 	return b11;
 }
 
+const char *bolt11_check_blake2b(const struct feature_set *our_features,
+				 const struct bolt11 *b11)
+{
+	/* NULL for the cli tool, as elsewhere here. */
+	if (!our_features)
+		return NULL;
+
+	if (feature_offered(our_features->bits[BOLT11_FEATURE], OPT_BLAKE2B)
+	    && !feature_offered(b11->features, OPT_BLAKE2B))
+		return "invoice does not set option_blake2b";
+	return NULL;
+}
+
 static bool valid_recovery_id(u8 recid) { return recid <= 3; }
 
 /* Decodes and checks signature; returns NULL on error. */

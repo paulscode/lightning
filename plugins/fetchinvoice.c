@@ -202,6 +202,20 @@ static struct command_result *handle_invreq_response(struct command *cmd,
 		return command_hook_success(cmd);
 	}
 
+	/* BOLT-blake2b #12:
+	 * A reader of an invoice:
+	 *...
+	 *   - if it follows the BLAKE2b proof of work rules and
+	 *     `invoice_features` does not set `option_blake2b`:
+	 *     - MUST reject the invoice.
+	 */
+	if (bolt12_check_blake2b(plugin_feature_set(cmd->plugin),
+				 inv->invoice_features,
+				 BOLT12_INVOICE_FEATURE)) {
+		badfield = "invoice_features";
+		goto badinv;
+	}
+
 	/* BOLT #12:
 	 * - if the invoice is a response to an `invoice_request`:
 	 * - MUST reject the invoice if all fields in ranges 0 to 159 and
@@ -451,6 +465,11 @@ static struct command_result *param_offer(struct command *cmd,
 						     "Unparsable offer: %s",
 						     fail));
 
+	fail = bolt12_check_blake2b(plugin_feature_set(cmd->plugin),
+				    (*offer)->offer_features,
+				    BOLT12_OFFER_FEATURE);
+	if (fail)
+		return command_fail_badparam(cmd, name, buffer, tok, fail);
 	return NULL;
 }
 

@@ -5435,12 +5435,21 @@ def test_payerkey(node_factory, old_hsmsecret):
     # Now we are supposed to put invreq_payer_id inside invreq, and lightningd
     # checks the derivation as a courtesy.  Fortunately, invreq_payer_id is last
 
+    # BOLT #12:
+    #     1. type: 84 (`invreq_features`)
+    #     2. data:
+    #        * [`...*byte`:`features`]
+
+    # A reader following the BLAKE2b rules rejects an invoice_request which
+    # does not set option_blake2b, so set bit 512.
+    invreq_features = ['5441', '01' + '00' * 64]
+
     for n, k in zip(nodes, expected_keys):
         # BOLT #12:
         #     1. type: 88 (`invreq_payer_id`)
         #     2. data:
         #        * [`point`:`key`]
-        encoded = subprocess.check_output([bolt12tool, 'encodehex'] + hexprefix + ['5821', k]).decode('UTF-8').strip()
+        encoded = subprocess.check_output([bolt12tool, 'encodehex'] + hexprefix + invreq_features + ['5821', k]).decode('UTF-8').strip()
         n.rpc.createinvoicerequest(encoded, False)['bolt12']
 
 
@@ -6996,7 +7005,9 @@ def test_pay_unannounced_routehint(node_factory, bitcoind):
 
 
 def test_decode_expired_bolt12(node_factory):
-    l1 = node_factory.get_node()
+    # This invoice does not set option_blake2b, so an upgraded node rejects it
+    # instead of decoding it.
+    l1 = node_factory.get_node(options={'dev-force-features': ['-514', '-512']})
 
     assert l1.rpc.decode('lni1qqgr7gm5fdxs3maw5tx94yx3k2hzxzqrqc0xsz3pwpkxz7t9wf0nwvpkxacku6tzxdhkuemfwdmrv6rywgmkxu35dvcrq93pqvvhnlnvurnfanndnxjtcjnmxrkj92xtsupa6lwjm7hkr8s8zflqkkppqgr5egnuvnfxvhzgemdljrkr5xhapg9zkjd73nqnmgxeesclr0j5skfud3hx7vt6vdehxwfjwakkxwt909skuamydfek67t2vau8zwfc0qukkennw9ensv3nvee8g7rww9jkwmrjwuursanpds6hydmy5zvqxxtelekwpe57eekenf9uffanpmfz4r9cwq7a0hfdltmpncr3ylstqvk0f8p94n8sk8r5pwh5um0v5sgs3atjnk54ja7yxle4putgwrv3sqgr72f645z9yjhe6f0r0ccfwhyufr0h734m2url2yputu25w7yzauxsqv4wftn76zuzrk9mkw203nfsz0kkc4ksk2d6ahd3ecslhrp5ecel7k0zy5r4s46fyjcr5x6kwcry08runv9zrsqqqqqqqqqqqqqqzgqqqqqqqqqqqqqayjedltzjqqqqqq9yq3n5ft0l4qs03nycmga9uqvexwyq2x59y8326r256clag77sq9z5m9wm9jz4ned2qvrpu69syyp3j707dnswd8kwdkv6f0z20vcw6g4gewrs8hta6t067cv7quf8uzlsgqjjt30e2udf5y3d79xpp7fhxktd4qflyexnsn3zthx2u9g5hzt2j45ky7q3mchmq75cqzxlr2x09dlhg6pj958xwgpykl0aczwepj6q') == {
         'invoice_amount_msat': 401000,

@@ -1,6 +1,7 @@
 #include "config.h"
 #include <ccan/mem/mem.h>
 #include <ccan/tal/str/str.h>
+#include <common/bolt12.h>
 #include <common/bolt12_id.h>
 #include <common/bolt12_merkle.h>
 #include <common/clock_time.h>
@@ -304,6 +305,19 @@ struct command_result *handle_invoice(struct command *cmd,
 		return fail_inv(cmd, inv,
 				"Unsupported invoice feature %i",
 				bad_feature);
+	}
+
+	/* BOLT-blake2b #12:
+	 * - if it follows the BLAKE2b proof of work rules and
+	 *   `invoice_features` does not set `option_blake2b`:
+	 *   - MUST reject the invoice.
+	 */
+	if (bolt12_check_blake2b(plugin_feature_set(cmd->plugin),
+				 inv->inv->invoice_features,
+				 BOLT12_INVOICE_FEATURE)) {
+		return fail_inv(cmd, inv,
+				"invoice_features does not set"
+				" option_blake2b");
 	}
 
 	/* BOLT #12:

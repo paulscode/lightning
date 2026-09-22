@@ -3,6 +3,7 @@
 #include <ccan/cast/cast.h>
 #include <ccan/tal/str/str.h>
 #include <common/bech32_util.h>
+#include <common/bolt12.h>
 #include <common/bolt12_id.h>
 #include <common/bolt12_merkle.h>
 #include <common/clock_time.h>
@@ -1169,6 +1170,19 @@ struct command_result *handle_invoice_request(struct command *cmd,
 		return fail_invreq(cmd, ir,
 				   "Unsupported invreq feature %i",
 				   bad_feature);
+	}
+
+	/* BOLT-blake2b #12:
+	 * - if it follows the BLAKE2b proof of work rules and
+	 *   `invreq_features` does not set `option_blake2b`:
+	 *   - MUST reject the invoice request.
+	 */
+	if (bolt12_check_blake2b(plugin_feature_set(cmd->plugin),
+				 ir->invreq->invreq_features,
+				 BOLT12_INVREQ_FEATURE)) {
+		return fail_invreq(cmd, ir,
+				   "invreq_features does not set"
+				   " option_blake2b");
 	}
 
 	/* BOLT #12:

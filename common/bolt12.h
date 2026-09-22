@@ -1,6 +1,7 @@
 #ifndef LIGHTNING_COMMON_BOLT12_H
 #define LIGHTNING_COMMON_BOLT12_H
 #include "config.h"
+#include <common/features.h>
 #include <wire/bolt12_wiregen.h>
 
 struct feature_set;
@@ -92,6 +93,21 @@ struct tlv_invoice *invoice_decode_minimal(const tal_t *ctx,
 					   const struct feature_set *our_features,
 					   const struct chainparams *must_be_chain,
 					   const char **fail);
+
+/* BOLT-blake2b #12:
+ * A reader of an offer:
+ *...
+ *   - if it follows the BLAKE2b proof of work rules and `offer_features` does
+ *     not set `option_blake2b`:
+ *     - MUST NOT respond to the offer.
+ *
+ * The same holds for `invreq_features` and `invoice_features`, which MUST be
+ * rejected.  Returns the reason, or NULL if the artifact is for us.  @features
+ * may be NULL, which is the case this catches.
+ */
+const char *bolt12_check_blake2b(const struct feature_set *our_features,
+				 const u8 *features,
+				 enum feature_place fplace);
 
 /* Check a bolt12-style signature. */
 bool bolt12_check_signature(const struct tlv_field *fields,

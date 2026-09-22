@@ -4,7 +4,6 @@
 #include <common/bech32_util.h>
 #include <common/bolt12.h>
 #include <common/bolt12_merkle.h>
-#include <common/features.h>
 #include <common/overflows.h>
 #include <common/utils.h>
 #include <inttypes.h>
@@ -72,8 +71,31 @@ static char *check_features_and_chain(const tal_t *ctx,
 		int badf = features_unsupported(our_features, features, fplace);
 		if (badf != -1)
 			return tal_fmt(ctx, "unknown feature bit %i", badf);
+
+		/* An offer is only rejected when we would respond to it, so
+		 * the caller which responds checks that one. */
+		if (fplace != BOLT12_OFFER_FEATURE) {
+			const char *err;
+			err = bolt12_check_blake2b(our_features, features,
+						   fplace);
+			if (err)
+				return tal_strdup(ctx, err);
+		}
 	}
 
+	return NULL;
+}
+
+const char *bolt12_check_blake2b(const struct feature_set *our_features,
+				 const u8 *features,
+				 enum feature_place fplace)
+{
+	if (!our_features)
+		return NULL;
+
+	if (feature_offered(our_features->bits[fplace], OPT_BLAKE2B)
+	    && !feature_offered(features, OPT_BLAKE2B))
+		return "does not set option_blake2b";
 	return NULL;
 }
 

@@ -40,6 +40,9 @@ struct amount_asset amount_sat_to_asset(struct amount_sat *sat UNNEEDED, const u
 /* Generated stub for amount_tx_fee */
 struct amount_sat amount_tx_fee(u32 fee_per_kw UNNEEDED, size_t weight UNNEEDED)
 { fprintf(stderr, "amount_tx_fee called!\n"); abort(); }
+/* Generated stub for feature_offered */
+bool feature_offered(const u8 *features UNNEEDED, size_t f UNNEEDED)
+{ fprintf(stderr, "feature_offered called!\n"); abort(); }
 /* Generated stub for features_unsupported */
 int features_unsupported(const struct feature_set *our_features UNNEEDED,
 			 const u8 *their_features UNNEEDED,

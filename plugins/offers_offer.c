@@ -538,6 +538,17 @@ struct command_result *json_offer(struct command *cmd,
 		offer->offer_chains[0] = chainparams->genesis_blockhash;
 	}
 
+	/* BOLT #12:
+	 * - if it supports bolt12 offer features:
+	 *   - MUST set `offer_features`.`features` to the bitmap of bolt12
+	 *     features.
+	 */
+	if (tal_bytelen(plugin_feature_set(cmd->plugin)->bits[BOLT12_OFFER_FEATURE]))
+		offer->offer_features
+			= tal_dup_talarr(offer, u8,
+					 plugin_feature_set(cmd->plugin)
+					 ->bits[BOLT12_OFFER_FEATURE]);
+
 	if (!offer_recurrence(offer)) {
 		if (offer->offer_recurrence_limit)
 			return command_fail_badparam(cmd, "recurrence_limit",
@@ -812,6 +823,11 @@ struct command_result *json_invoicerequest(struct command *cmd,
 	 * - if it supports bolt12 invoice request features:
 	 *   - MUST set `invreq_features`.`features` to the bitmap of features.
 	 */
+	if (tal_bytelen(plugin_feature_set(cmd->plugin)->bits[BOLT12_INVREQ_FEATURE]))
+		invreq->invreq_features
+			= tal_dup_talarr(invreq, u8,
+					 plugin_feature_set(cmd->plugin)
+					 ->bits[BOLT12_INVREQ_FEATURE]);
 
 	if (we_want_blinded_path(cmd->plugin, od->fronting_nodes, false)) {
 		struct invrequest_data *idata = tal(cmd, struct invrequest_data);

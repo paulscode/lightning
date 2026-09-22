@@ -1116,5 +1116,17 @@ bool psbt_set_version(struct wally_psbt *psbt, u32 version)
 		ok &= wally_psbt_set_tx_modifiable_flags(psbt, WALLY_PSBT_TXMOD_INPUTS | WALLY_PSBT_TXMOD_OUTPUTS) == WALLY_OK;
 	}
 	tal_wally_end(psbt);
+
+	/* Setting the version can succeed on a PSBT that cannot then be
+	 * serialized in it, and a caller has no reason to expect that: the
+	 * next thing anybody does with a converted PSBT is store it or send
+	 * it, and psbt_get_bytes aborts rather than failing. A coinbase
+	 * transaction is such a PSBT, since a null previous outpoint has no
+	 * version 2 representation. Report it here, so a caller which checks
+	 * can refuse it; one which ignores the result is no worse off than
+	 * before, since the PSBT is converted in place either way. */
+	if (ok && !validate_psbt(psbt))
+		return false;
+
 	return ok;
 }

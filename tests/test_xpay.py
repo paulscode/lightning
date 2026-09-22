@@ -20,6 +20,13 @@ import time
 import unittest
 
 
+# A BOLT 11 or BOLT 12 feature vector is as long as its highest set bit, so
+# option_blake2b (512) makes it 65 bytes, with the even bit first.
+BLAKE2B = '01' + '00' * 64
+# ... and option_basic_mpp (17) lands two bytes from the end.
+BLAKE2B_MPP = '01' + '00' * 61 + '020000'
+
+
 def test_pay_fakenet(node_factory):
     hash1 = sha256(bytes.fromhex('00' + '00' * 31)).hexdigest()
     hash2 = sha256(bytes.fromhex('01' + '00' * 31)).hexdigest()
@@ -661,8 +668,8 @@ def test_xpay_bolt12_no_mpp(node_factory, chainparams):
     l3offer = l3.rpc.offer(AMOUNT, 'test_xpay_bolt12_no_mpp')
     invl3 = l1.rpc.fetchinvoice(l3offer['bolt12'])
 
-    assert l1.rpc.decode(invl2['invoice'])['invoice_features'] == "020000"
-    assert l1.rpc.decode(invl3['invoice'])['invoice_features'] == ""
+    assert l1.rpc.decode(invl2['invoice'])['invoice_features'] == BLAKE2B_MPP
+    assert l1.rpc.decode(invl3['invoice'])['invoice_features'] == BLAKE2B
 
     ret = l1.rpc.xpay(invl3['invoice'])
     assert ret['failed_parts'] == 0

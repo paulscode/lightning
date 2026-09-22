@@ -33,10 +33,16 @@ const char *feature_place_names[] = {
 };
 
 static const struct feature_style feature_styles[] = {
-	/* Required Blake2b declaration: legacy peers must reject it. */
+	/* Required Blake2b declaration: a peer which has not upgraded must
+	 * reject it.  The payment artifacts carry it too: a reader which does
+	 * not know the bit refuses them, because it is even. */
 	{ OPT_BLAKE2B,
 	  .copy_style = { [INIT_FEATURE] = FEATURE_REPRESENT,
-			  [NODE_ANNOUNCE_FEATURE] = FEATURE_REPRESENT } },
+			  [NODE_ANNOUNCE_FEATURE] = FEATURE_REPRESENT,
+			  [BOLT11_FEATURE] = FEATURE_REPRESENT,
+			  [BOLT12_OFFER_FEATURE] = FEATURE_REPRESENT,
+			  [BOLT12_INVREQ_FEATURE] = FEATURE_REPRESENT,
+			  [BOLT12_INVOICE_FEATURE] = FEATURE_REPRESENT } },
 	{ OPT_UNIFIED_SIGS,
 	  .copy_style = { [INIT_FEATURE] = FEATURE_REPRESENT_AS_OPTIONAL,
 			  [NODE_ANNOUNCE_FEATURE] = FEATURE_REPRESENT_AS_OPTIONAL,

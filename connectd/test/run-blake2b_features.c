@@ -19,8 +19,12 @@ int main(int argc, char *argv[])
 	assert(feature_is_set(blake->bits[NODE_ANNOUNCE_FEATURE], OPT_BLAKE2B));
 	assert(features_unsupported(legacy, blake->bits[INIT_FEATURE], INIT_FEATURE) == OPT_BLAKE2B);
 	assert(features_unsupported(blake, empty, INIT_FEATURE) == -1);
-	for (size_t i = BOLT11_FEATURE; i <= BOLT12_INVOICE_FEATURE; i++)
-		assert(tal_bytelen(blake->bits[i]) == 0);
+	/* The payment artifacts carry the even form: a reader without these
+	 * rules refuses them on the unknown even bit. */
+	for (size_t i = BOLT11_FEATURE; i <= BOLT12_INVOICE_FEATURE; i++) {
+		assert(feature_is_set(blake->bits[i], OPT_BLAKE2B));
+		assert(!feature_is_set(blake->bits[i], OPT_BLAKE2B + 1));
+	}
 	assert(OPT_BLAKE2B == 512);
 	/* A vector is as long as its highest set bit. */
 	assert(tal_bytelen(blake->bits[INIT_FEATURE]) == 65);

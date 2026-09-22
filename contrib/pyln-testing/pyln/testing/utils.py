@@ -502,7 +502,28 @@ class BitcoinD(TailableProc):
         if self.reserved_rpcport is not None:
             drop_unused_port(self.reserved_rpcport)
 
+    def blake2b_activation_args(self):
+        """The argument which activates this chain's rules, if any.
+
+        This chain's signatures opt into them, so the backend has to have them
+        active or it rejects every one as opting into rules that are not
+        active there, and no test can open a channel.
+
+        A test which replays a historical fixture from before the activation
+        asks for a later height through BLAKE2B_ACTIVATION_HEIGHT.
+        """
+        return ['-testactivationheight=blake2b@'
+                + self.env.get('BLAKE2B_ACTIVATION_HEIGHT', '1')]
+
     def start(self, wallet_file=None):
+        # BLAKE2B_ACTIVATION_HEIGHT is set on self.env after __init__ has run,
+        # and a command line argument beats the environment, so the argument is
+        # built here rather than there. Any earlier one is dropped first,
+        # because start() is called again on a restart.
+        self.cmd_line = [a for a in self.cmd_line
+                         if not a.startswith('-testactivationheight=blake2b@')]
+        self.cmd_line += self.blake2b_activation_args()
+
         TailableProc.start(self)
         self.wait_for_log("Done loading", timeout=TIMEOUT)
 
@@ -683,6 +704,12 @@ class ElementsD(BitcoinD):
         self.conf_file = conf_file
         self.rpc = SimpleBitcoinProxy(btc_conf_file=self.conf_file)
         self.prefix = 'elementsd'
+
+    def blake2b_activation_args(self):
+        # Liquid has no blake2b deployment, and elementsd exits on an option
+        # it does not know. It never reached elementsd before only because
+        # __init__ above replaces cmd_line after BitcoinD.__init__ built it.
+        return []
 
     def getnewaddress(self):
         """Need to get an address and then make it unconfidential

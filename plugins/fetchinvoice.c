@@ -450,6 +450,7 @@ static struct command_result *param_offer(struct command *cmd,
 					     tal_fmt(cmd,
 						     "Unparsable offer: %s",
 						     fail));
+
 	return NULL;
 }
 
@@ -1139,7 +1140,9 @@ struct command_result *json_fetchinvoice(struct command *cmd,
 	 *     - MUST set `invreq_features`.`features` to the bitmap of features.
 	 */
 	invreq->invreq_features
-		= plugin_feature_set(cmd->plugin)->bits[BOLT12_OFFER_FEATURE];
+		= tal_dup_talarr(invreq, u8,
+				 plugin_feature_set(cmd->plugin)
+				 ->bits[BOLT12_INVREQ_FEATURE]);
 
 	/* invreq->invreq_payer_note is not a nul-terminated string! */
 	if (payer_note)
@@ -1294,7 +1297,9 @@ struct command_result *json_cancelrecurringinvoice(struct command *cmd,
 	 *     - MUST set `invreq_features`.`features` to the bitmap of features.
 	 */
 	invreq->invreq_features
-		= plugin_feature_set(cmd->plugin)->bits[BOLT12_OFFER_FEATURE];
+		= tal_dup_talarr(invreq, u8,
+				 plugin_feature_set(cmd->plugin)
+				 ->bits[BOLT12_INVREQ_FEATURE]);
 
 	/* invreq->invreq_payer_note is not a nul-terminated string! */
 	if (payer_note)

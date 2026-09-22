@@ -247,6 +247,22 @@ static void test_feature_trim(void)
 	}
 }
 
+static void test_featurebits_unset(void)
+{
+	u8 *bits = tal_arr(tmpctx, u8, 0);
+
+	/* 44 and 46 share a byte: clearing one must leave the other. */
+	set_feature_bit(&bits, 44);
+	set_feature_bit(&bits, 46);
+	featurebits_unset(&bits, 46);
+	assert(feature_is_set(bits, 44));
+	assert(!feature_is_set(bits, 46));
+
+	/* Clearing the last bit in the vector trims it away entirely. */
+	featurebits_unset(&bits, 44);
+	assert(tal_bytelen(bits) == 0);
+}
+
 int main(int argc, char *argv[])
 {
 	u8 *bits;
@@ -328,6 +344,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	test_featurebits_unset();
 	test_featurebits_or();
 	test_feature_set_or();
 	test_feature_trim();

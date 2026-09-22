@@ -8,6 +8,10 @@
 
 #define ELEMENTS_ASSET_LEN 33
 
+/* The ordinary coinbase maturity, and so the value of
+ * relay_coinbase_maturity on every chain that has not lengthened it. */
+#define COINBASE_MATURITY 100
+
 struct chainparams {
 	const char *network_name;
 	/* Unfortunately starting with signet, we now have diverging
@@ -47,6 +51,16 @@ struct chainparams {
 	/* Total coins in network */
 	const struct amount_sat max_supply;
 	const u32 when_lightning_became_cool;
+	/* The depth a coinbase output must reach before this network will
+	 * relay a transaction spending it.
+	 *
+	 * This is a relay rule, not a consensus one, and on a chain that
+	 * deploys a longer coinbase maturity the two do not agree: a spend
+	 * can be perfectly valid in a block and still be refused by every
+	 * node it is offered to. A node that never validates blocks, which
+	 * is all of us, only ever wants the relay answer. It is
+	 * COINBASE_MATURITY on any chain without such a rule. */
+	const u32 relay_coinbase_maturity;
 	const u8 p2pkh_version;
 	const u8 p2sh_version;
 

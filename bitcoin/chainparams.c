@@ -53,6 +53,17 @@ const struct chainparams networks[] = {
      .max_supply = AMOUNT_SAT_INIT(2100000000000000),
      /* "Lightning Charge Powers Developers & Blockstream Store" */
      .when_lightning_became_cool = 504500,
+     /* Bitcoin Knots deploys a temporary longer coinbase maturity on this
+      * chain: an upgraded node requires this depth of every coinbase spend
+      * it will accept into its mempool, whatever height the coinbase was
+      * mined at, and keeps requiring it after the consensus window closes.
+      *
+      * Read off v29.4.2.knots20260508, where CoinbaseMaturityLong is
+      * CoinbaseMaturityLongReleaseHeight (979920) minus
+      * CoinbaseMaturityLongStartHeight (973440). Temporary in their words
+      * rather than ours, and a full year is under discussion, so re-check it
+      * against the release you run. */
+     .relay_coinbase_maturity = 6480,
      .p2pkh_version = 0,
      .p2sh_version = 5,
      .testnet = false,
@@ -79,6 +90,7 @@ const struct chainparams networks[] = {
      .max_payment = AMOUNT_MSAT_INIT(0xFFFFFFFFULL),
      .max_supply = AMOUNT_SAT_INIT(2100000000000000),
      .when_lightning_became_cool = 1,
+     .relay_coinbase_maturity = COINBASE_MATURITY,
      .p2pkh_version = 111,
      .p2sh_version = 196,
      .testnet = true,
@@ -106,6 +118,7 @@ const struct chainparams networks[] = {
      .max_payment = AMOUNT_MSAT_INIT(0xFFFFFFFFULL),
      .max_supply = AMOUNT_SAT_INIT(2100000000000000),
      .when_lightning_became_cool = 1,
+     .relay_coinbase_maturity = COINBASE_MATURITY,
      .p2pkh_version = 111,
      .p2sh_version = 196,
      .testnet = true,
@@ -130,6 +143,7 @@ const struct chainparams networks[] = {
      .max_funding = AMOUNT_SAT_INIT((1 << 24) - 1),
      .max_payment = AMOUNT_MSAT_INIT(0xFFFFFFFFULL),
      .max_supply = AMOUNT_SAT_INIT(2100000000000000),
+     .relay_coinbase_maturity = COINBASE_MATURITY,
      .p2pkh_version = 111,
      .p2sh_version = 196,
      .testnet = true,
@@ -157,6 +171,9 @@ const struct chainparams networks[] = {
      .max_funding = AMOUNT_SAT_INIT((1 << 24) - 1),
      .max_payment = AMOUNT_MSAT_INIT(0xFFFFFFFFULL),
      .max_supply = AMOUNT_SAT_INIT(2100000000000000),
+     /* As bitcoin above: 158111 minus 151406. Doubly provisional, since
+      * this chain's heights were rewritten at every release candidate. */
+     .relay_coinbase_maturity = 6705,
      .p2pkh_version = 111,
      .p2sh_version = 196,
      .testnet = true,
@@ -182,6 +199,7 @@ const struct chainparams networks[] = {
      .max_payment = AMOUNT_MSAT_INIT(0xFFFFFFFFULL),
      .max_supply = AMOUNT_SAT_INIT(2100000000000000),
      .when_lightning_became_cool = 1,
+     .relay_coinbase_maturity = COINBASE_MATURITY,
      .p2pkh_version = 91,
      .p2sh_version = 75,
      .testnet = true,
@@ -207,6 +225,7 @@ const struct chainparams networks[] = {
      .max_payment = AMOUNT_MSAT_INIT(0xFFFFFFFFULL),
      .max_supply = AMOUNT_SAT_INIT(2100000000000000),
      .when_lightning_became_cool = 1,
+     .relay_coinbase_maturity = COINBASE_MATURITY,
      .p2pkh_version = 57,
      .p2sh_version = 39,
      .testnet = false,

@@ -1,4 +1,6 @@
 #include "config.h"
+#include <bitcoin/chainparams.h>
+#include <common/utils.h>
 #include <common/utxo.h>
 
 size_t utxo_spend_weight(const struct utxo *utxo, size_t min_witness_weight)
@@ -20,12 +22,24 @@ size_t utxo_spend_weight(const struct utxo *utxo, size_t min_witness_weight)
 u32 utxo_is_immature(const struct utxo *utxo, u32 blockheight)
 {
 	if (utxo->is_in_coinbase) {
+		u32 mature_at;
+
 		/* We got this from a block, it must have a known
 		 * blockheight. */
 		assert(utxo->blockheight);
 
-		if (blockheight < *utxo->blockheight + 100)
-			return *utxo->blockheight + 99 - blockheight;
+		/* The depth at which the network will relay a spend, not the
+		 * hundred blocks that make one valid. On a chain with a
+		 * longer coinbase maturity these differ, and a transaction we
+		 * cannot hand to a peer is not spendable whatever a block
+		 * would make of it: we would build it, sign it, and have it
+		 * refused at broadcast. The two are the same number on every
+		 * chain without such a rule. */
+		mature_at = *utxo->blockheight
+			+ chainparams->relay_coinbase_maturity;
+
+		if (blockheight < mature_at)
+			return mature_at - 1 - blockheight;
 
 		else
 			return 0;

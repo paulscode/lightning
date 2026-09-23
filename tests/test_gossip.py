@@ -2529,3 +2529,82 @@ def test_gossip_dying_when_compact(node_factory, bitcoind):
     # Now actually close it (72 deep)
     bitcoind.generate_block(71)
     wait_for(lambda: len(l1.rpc.listchannels()["channels"]) == 2)
+
+
+@unittest.skipIf(TEST_NETWORK != 'regtest', 'activation height is a bitcoin rule')
+def test_gossip_ignores_announcement_from_before_activation(node_factory, bitcoind):
+    """A channel funded below the activation height is not put in the graph.
+
+    Its funding output is equally visible to a node which has not upgraded,
+    and this node does not see what such a node does with it, so a channel
+    announced against one would sit in the graph with nothing able to remove
+    it.
+
+    l1 and l2 do not know about an activation height, so they announce
+    normally. l3 does, and is above the channel, so it must ignore what l1
+    tells it.
+    """
+    l1, l2 = node_factory.line_graph(2, wait_for_announce=True)
+    scid = only_one(l1.rpc.listpeerchannels()['channels'])['short_channel_id']
+    funding_height = int(scid.split('x')[0])
+
+    # Well above the channel, so the rule applies to it.
+    # allow_bad_gossip because ignoring the announcement has a consequence:
+    # the channel_update which follows it arrives for a channel gossipd has
+    # never heard of, and gossipd calls that bad gossip order. That is the
+    # rule working, not a fault, but the framework counts it.
+    l3 = node_factory.get_node(options={
+        'dev-blake2b-activation-height': funding_height + 10,
+    }, allow_bad_gossip=True)
+    l3.rpc.connect(l1.info['id'], 'localhost', l1.port)
+
+    # l1 has it and will offer it; l3 must not take it.
+    wait_for(lambda: scid in [c['short_channel_id']
+                              for c in l1.rpc.listchannels()['channels']])
+    bitcoind.generate_block(6)
+    sync_blockheight(bitcoind, [l1, l3])
+    time.sleep(20)
+    assert scid not in [c['short_channel_id']
+                        for c in l3.rpc.listchannels()['channels']]
+
+
+@unittest.skipIf(TEST_NETWORK != 'regtest', 'activation height is a bitcoin rule')
+def test_gossip_does_not_announce_channel_from_before_activation(node_factory, bitcoind):
+    """The same rule applied to an announcement we generate ourselves.
+
+    gossipd drops our own announcement on the way in, but broadcast_new_gossip
+    sends to peers without waiting for that answer, so the skip has to happen
+    before the message is built.
+    """
+    height = bitcoind.rpc.getblockcount()
+
+    # Both channels below are funded now; the second is above the height, so
+    # only the first is caught by the rule.
+    opts = {'dev-blake2b-activation-height': height + 25}
+    l1 = node_factory.get_node(options=opts, allow_bad_gossip=True)
+    l2 = node_factory.get_node(options=opts, allow_bad_gossip=True)
+    l3 = node_factory.get_node(allow_bad_gossip=True)
+
+    node_factory.join_nodes([l1, l2], wait_for_announce=False)
+    below = only_one(l1.rpc.listpeerchannels()['channels'])['short_channel_id']
+
+    bitcoind.generate_block(30)
+    sync_blockheight(bitcoind, [l1, l2, l3])
+
+    node_factory.join_nodes([l2, l3], wait_for_announce=False)
+    above = only_one(l3.rpc.listpeerchannels()['channels'])['short_channel_id']
+
+    assert int(below.split('x')[0]) < height + 25
+    assert int(above.split('x')[0]) >= height + 25
+
+    bitcoind.generate_block(6)
+    sync_blockheight(bitcoind, [l1, l2, l3])
+
+    # l2 announces the one above and never the one below, so l3 learns only
+    # the second even though l2 is a party to both.
+    wait_for(lambda: above in [c['short_channel_id']
+                               for c in l3.rpc.listchannels()['channels']])
+    time.sleep(20)
+    assert below not in [c['short_channel_id']
+                         for c in l3.rpc.listchannels()['channels']]
+    l1.daemon.wait_for_log('Not announcing .*: funded before the BLAKE2b')

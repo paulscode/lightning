@@ -185,9 +185,9 @@ exception and are refused, because there the commitment signature is a MuSig2
 partial signature over a BIP341 digest, so opting in would be a wire change
 rather than a hash type, and two sides would sign different digests.
 
-A channel funded from coins that existed before the fork, on a channel type
-without the opt-in, remains replayable through its commitment transactions.
-Prefer funding from coins received after the activation.
+A channel funded from coins mined before the proof of work changed, on a
+channel type without the opt-in, remains replayable through its commitment
+transactions. Prefer funding from coins received after the activation.
 
 ## 5. Invoices: `option_blake2b` in the `9` field
 
@@ -414,8 +414,9 @@ Lightning Fork's parser is in its btcd fork's `wire` package.
 ## Status
 
 Sections 1 to 4 are implemented in Lightning Fork
-(`github.com/paulscode/lightning-fork`), running on mainnet, and in this build
-of Core Lightning. Sections 5 and 6 are implemented in neither.
+([github.com/paulscode/lightning-fork](https://github.com/paulscode/lightning-fork)),
+running on mainnet, and in this build of Core Lightning. Sections 5 and 6
+are implemented in neither.
 
 What the Core Lightning series does is the gossip floor, and that is all. It does not touch
 `chain_hash`, feature bits, channel types or BOLT 11.

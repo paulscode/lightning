@@ -124,6 +124,7 @@ static struct lightningd *new_lightningd(const tal_t *ctx)
 	ld->dev_disconnect_fd = -1;
 	ld->dev_subdaemon_fail = false;
 	ld->dev_allow_localhost = false;
+	ld->dev_blake2b_activation_height = 0;
 	ld->dev_fast_gossip = false;
 	ld->dev_fast_gossip_prune = false;
 	ld->dev_throttle_gossip = false;

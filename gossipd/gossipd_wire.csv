@@ -11,6 +11,7 @@ msgdata,gossipd_init,our_features,feature_set,
 msgdata,gossipd_init,id,node_id,
 msgdata,gossipd_init,autoconnect_seeker_peers,u32,
 msgdata,gossipd_init,compactd_helper,wirestring,
+msgdata,gossipd_init,dev_blake2b_activation_height,u32,
 msgdata,gossipd_init,dev_fast_gossip,bool,
 msgdata,gossipd_init,dev_fast_gossip_prune,bool,
 

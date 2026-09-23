@@ -323,6 +323,7 @@ void gossip_init(struct lightningd *ld, int connectd_fd)
 	    &ld->our_nodeid,
 	    ld->autoconnect_seeker_peers,
 	    subdaemon_path(tmpctx, ld, "lightning_gossip_compactd"),
+	    ld->dev_blake2b_activation_height,
 	    ld->dev_fast_gossip,
 	    ld->dev_fast_gossip_prune);
 

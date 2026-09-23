@@ -755,6 +755,7 @@ static void send_channel_announcement(struct channel *channel)
 	struct lightningd *ld = channel->peer->ld;
 	const u8 *ca, *msg;
 	struct channel_gossip *cg = channel->channel_gossip;
+	u32 activation;
 
 	/* BOLT-blake2b #7:
 	 *   - if the `short_channel_id`'s block height is less than 961,640,
@@ -767,9 +768,12 @@ static void send_channel_announcement(struct channel *channel)
 	 * broadcast_new_gossip does not wait for that answer before sending
 	 * the message to every peer, so without this the announcement leaves
 	 * this node anyway. Stop before asking hsmd to sign it. */
-	if (chainparams->blake2b_activation_height != 0
-	    && short_channel_id_blocknum(*channel->scid)
-	    < chainparams->blake2b_activation_height) {
+	activation = ld->dev_blake2b_activation_height;
+	if (activation == 0)
+		activation = chainparams->blake2b_activation_height;
+
+	if (activation != 0
+	    && short_channel_id_blocknum(*channel->scid) < activation) {
 		log_debug(channel->log,
 			  "Not announcing %s: funded before the BLAKE2b"
 			  " activation height",

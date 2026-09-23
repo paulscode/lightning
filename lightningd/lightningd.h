@@ -309,6 +309,11 @@ struct lightningd {
 	bool dev_allow_localhost;
 
 	/* Speedup gossip propagation, for testing. */
+	/* Developer: pretend Bitcoin's proof of work changed at this height,
+	 * so the rules that key off it can be reached on a network where it
+	 * did not. Zero means use the chain parameter. */
+	u32 dev_blake2b_activation_height;
+
 	bool dev_fast_gossip;
 	bool dev_fast_gossip_prune;
 	bool dev_throttle_gossip;

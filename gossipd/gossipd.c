@@ -383,6 +383,7 @@ static void gossip_init(struct daemon *daemon, const u8 *msg)
 				   &daemon->id,
 				   &daemon->autoconnect_seeker_peers,
 				   &daemon->compactd_helper,
+				   &daemon->dev_blake2b_activation_height,
 				   &daemon->dev_fast_gossip,
 				   &daemon->dev_fast_gossip_prune)) {
 		master_badmsg(WIRE_GOSSIPD_INIT, msg);

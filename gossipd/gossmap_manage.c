@@ -626,6 +626,7 @@ const char *gossmap_manage_channel_announcement(const tal_t *ctx,
 	secp256k1_ecdsa_signature node_signature_1, node_signature_2;
 	secp256k1_ecdsa_signature bitcoin_signature_1, bitcoin_signature_2;
 	u8 *features;
+	u32 activation;
 	struct bitcoin_blkid chain_hash;
 	struct short_channel_id scid;
 	struct node_id node_id_1;
@@ -680,9 +681,11 @@ const char *gossmap_manage_channel_announcement(const tal_t *ctx,
 	 * upgraded carries the same genesis hash, because it is the same
 	 * chain, so chain_hash only tells Bitcoin from some other network.
 	 */
-	if (chainparams->blake2b_activation_height != 0
-	    && short_channel_id_blocknum(scid)
-	    < chainparams->blake2b_activation_height)
+	activation = gm->daemon->dev_blake2b_activation_height;
+	if (activation == 0)
+		activation = chainparams->blake2b_activation_height;
+
+	if (activation != 0 && short_channel_id_blocknum(scid) < activation)
 		return NULL;
 
 	/* Immediately discard claims of ancient channels */

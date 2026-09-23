@@ -67,6 +67,10 @@ struct daemon {
 	char *compactd_helper;
 
 	/* Speed up gossip. */
+	/* Developer: overrides chainparams->blake2b_activation_height, so the
+	 * gossip rule can be reached on a network where it is zero. */
+	u32 dev_blake2b_activation_height;
+
 	bool dev_fast_gossip;
 
 	/* Speed up pruning. */

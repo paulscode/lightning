@@ -808,6 +808,11 @@ static void dev_register_opts(struct lightningd *ld)
 	clnopt_witharg("--dev-disconnect=<filename>", OPT_DEV,
 		       opt_subd_dev_disconnect,
 		       NULL, ld, "File containing disconnection points");
+	clnopt_witharg("--dev-blake2b-activation-height=<height>", OPT_DEV,
+		       opt_set_u32, opt_show_u32,
+		       &ld->dev_blake2b_activation_height,
+		       "Height at which the proof of work changed, overriding the "
+		       "chain parameter");
 	clnopt_noarg("--dev-allow-localhost", OPT_DEV,
 		     opt_set_bool,
 		     &ld->dev_allow_localhost,

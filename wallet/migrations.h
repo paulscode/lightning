@@ -36,6 +36,8 @@ void migrate_invalid_last_tx_psbts(struct lightningd *ld,
 				   struct db *db);
 void migrate_fill_in_channel_type(struct lightningd *ld,
 				  struct db *db);
+void migrate_channel_type_unified_sigs_bit(struct lightningd *ld,
+					   struct db *db);
 void migrate_normalize_invstr(struct lightningd *ld,
 			      struct db *db);
 void migrate_initialize_invoice_wait_indexes(struct lightningd *ld,

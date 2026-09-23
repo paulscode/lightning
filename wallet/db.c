@@ -2,6 +2,7 @@
 #include <bitcoin/script.h>
 #include <ccan/array_size/array_size.h>
 #include <ccan/tal/str/str.h>
+#include <common/features.h>
 #include <common/utils.h>
 #include <common/version.h>
 #include <db/bindings.h>
@@ -702,6 +703,50 @@ void migrate_fill_in_channel_type(struct lightningd *ld,
 
 		if (db_col_int(stmt, "minimum_depth") == 0)
 			channel_type_set_zeroconf(type);
+
+		update_stmt = db_prepare_v2(db, SQL("UPDATE channels SET"
+						    " channel_type = ?"
+						    " WHERE id = ?"));
+		db_bind_channel_type(update_stmt, type);
+		db_bind_u64(update_stmt, id);
+		db_exec_prepared_v2(update_stmt);
+		tal_free(update_stmt);
+	}
+	tal_free(stmt);
+}
+
+/* option_unified_sigs moved from bit 70 to 514.  channel_type is stored as
+ * the raw bitmap, so a channel opened before the move still says 70, and
+ * channel_type_sighash() would stop seeing it and sign without
+ * SIGHASH_UNIFIED. */
+#define OLD_OPT_UNIFIED_SIGS 70
+
+void migrate_channel_type_unified_sigs_bit(struct lightningd *ld,
+					   struct db *db)
+{
+	struct db_stmt *stmt;
+
+	stmt = db_prepare_v2(db, SQL("SELECT id, channel_type FROM channels"));
+	db_query_prepared(stmt);
+	while (db_step(stmt)) {
+		struct db_stmt *update_stmt;
+		struct channel_type *type;
+		u64 id = db_col_u64(stmt, "id");
+
+		if (db_col_is_null(stmt, "channel_type")) {
+			db_col_ignore(stmt, "channel_type");
+			continue;
+		}
+
+		type = db_col_channel_type(tmpctx, stmt, "channel_type");
+		if (!feature_offered(type->features, OLD_OPT_UNIFIED_SIGS))
+			continue;
+
+		featurebits_unset(&type->features, OLD_OPT_UNIFIED_SIGS);
+		featurebits_unset(&type->features,
+				  OPTIONAL_FEATURE(OLD_OPT_UNIFIED_SIGS));
+		set_feature_bit(&type->features,
+				COMPULSORY_FEATURE(OPT_UNIFIED_SIGS));
 
 		update_stmt = db_prepare_v2(db, SQL("UPDATE channels SET"
 						    " channel_type = ?"

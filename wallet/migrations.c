@@ -1119,6 +1119,7 @@ static const struct db_migration dbmigrations[] = {
 	 " WHERE funding_feerate = 0 OR funding_feerate IS NULL;"), NULL,
      /* Clamping is idempotent, so no revert needed */
      NULL, NULL},
+    {NULL, migrate_channel_type_unified_sigs_bit},
 };
 
 const struct db_migration *get_db_migrations(size_t *num)

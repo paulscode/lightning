@@ -328,6 +328,10 @@ void fillin_missing_scriptpubkeys(struct lightningd *ld UNNEEDED, struct db *db 
 void insert_addrtype_to_addresses(struct lightningd *ld UNNEEDED,
 				  struct db *db UNNEEDED)
 { fprintf(stderr, "insert_addrtype_to_addresses called!\n"); abort(); }
+/* Generated stub for migrate_channel_type_unified_sigs_bit */
+void migrate_channel_type_unified_sigs_bit(struct lightningd *ld UNNEEDED,
+					   struct db *db UNNEEDED)
+{ fprintf(stderr, "migrate_channel_type_unified_sigs_bit called!\n"); abort(); }
 /* Generated stub for migrate_channels_scids_as_integers */
 void migrate_channels_scids_as_integers(struct lightningd *ld UNNEEDED,
 					struct db *db UNNEEDED)

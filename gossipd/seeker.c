@@ -723,8 +723,13 @@ static void process_scid_probe(struct peer *peer,
 	gossmap = gossmap_manage_get_gossmap(daemon->gm);
 
 	for (size_t i = 0; i < tal_count(replies); i++) {
-		struct gossmap_chan *c = gossmap_find_chan(gossmap,
-							   &replies[i].scid);
+		struct gossmap_chan *c;
+
+		/* Nothing we would keep: see gossmap_manage.c. */
+		if (scid_predates_blake2b(daemon, replies[i].scid))
+			continue;
+
+		c = gossmap_find_chan(gossmap, &replies[i].scid);
 		if (c) {
 			check_timestamps(seeker, gossmap, c, &replies[i].ts, peer);
 			continue;
@@ -800,7 +805,9 @@ static void probe_random_scids(struct seeker *seeker, size_t num_blocks)
 	 * lightningd down, once the tip is exactly num_blocks past the
 	 * activation height. */
 	if (avail_blocks <= num_blocks) {
-		seeker->scid_probe_start = 0;
+		seeker->scid_probe_start
+			= min_unsigned(blake2b_activation(seeker->daemon),
+				       seeker->daemon->current_blockheight);
 		seeker->scid_probe_end = seeker->daemon->current_blockheight;
 	} else {
 		seeker->scid_probe_start
@@ -925,7 +932,9 @@ static void check_firstpeer(struct seeker *seeker)
 			       blake2b_activation(seeker->daemon));
 	seeker->scid_probe_end = seeker->daemon->current_blockheight;
 	if (seeker->scid_probe_start > seeker->scid_probe_end)
-		seeker->scid_probe_start = 0;
+		seeker->scid_probe_start
+			= min_unsigned(blake2b_activation(seeker->daemon),
+				       seeker->scid_probe_end);
 	peer_gossip_probe_scids(seeker);
 }
 

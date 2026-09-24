@@ -53,6 +53,10 @@ void queue_peer_msg(struct daemon *daemon UNNEEDED,
 		    const struct node_id *peer UNNEEDED,
 		    const u8 *msg TAKES UNNEEDED)
 { fprintf(stderr, "queue_peer_msg called!\n"); abort(); }
+/* Generated stub for scid_predates_blake2b */
+bool scid_predates_blake2b(const struct daemon *daemon UNNEEDED,
+			   struct short_channel_id scid UNNEEDED)
+{ fprintf(stderr, "scid_predates_blake2b called!\n"); abort(); }
 /* Generated stub for towire_gossipd_connect_to_peer */
 u8 *towire_gossipd_connect_to_peer(const tal_t *ctx UNNEEDED, const struct node_id *id UNNEEDED)
 { fprintf(stderr, "towire_gossipd_connect_to_peer called!\n"); abort(); }

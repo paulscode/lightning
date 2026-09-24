@@ -2563,6 +2563,26 @@ static void channel_funding_found(struct lightningd *ld,
 				  const struct txlocator *loc,
 				  struct channel *channel)
 {
+	/* A miner can pay a block reward straight into the funding script,
+	 * which makes the coinbase the funding transaction.  Nothing spending
+	 * a coinbase output relays until it is far deeper than any depth we
+	 * would wait, so every commitment of such a channel is stuck while
+	 * its HTLCs expire.  Transaction 0 of a block is the coinbase, and we
+	 * can only be the fundee of one, having put nothing in: forget it
+	 * before channeld hears a single confirmation.  A zero-conf channel
+	 * is its peer's to trust, and is already in use. */
+	if (loc->index == 0
+	    && channel->opener == REMOTE
+	    && channel->state == CHANNELD_AWAITING_LOCKIN
+	    && channel->minimum_depth != 0) {
+		channel_fail_forget(channel,
+				    "Funding transaction %s is a coinbase,"
+				    " which cannot be spent until it matures",
+				    fmt_bitcoin_txid(tmpctx,
+						     &channel->funding.txid));
+		return;
+	}
+
 	/* Closes channel if it doesn't fit in an scid! */
 	if (depthcb_update_scid(channel, &channel->funding, loc)) {
 		/* We will almost immediately get called, which is what we want! */

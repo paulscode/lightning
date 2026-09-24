@@ -6,18 +6,16 @@ broadcast, nothing has to relay, and the block itself creates the channel.
 
 We cannot be the funder of one, because libwally cannot represent a coinbase
 input in a version 2 PSBT, and that is what the first test pins down. We can
-still be asked to be the fundee, where no PSBT is involved and the only thing
-between us and a channel we cannot close is
-channel_funding_depth_required(); that path needs a funder we do not have
-here, so it is covered by review and by the reproduction against lnd rather
-than by a test in this file.
+still be asked to be the fundee, and we refuse: the channel is forgotten the
+moment its funding is found at transaction 0 of a block.
 """
 from fixtures import *  # noqa: F401,F403
 from fixtures import TEST_NETWORK
 from pyln.client import RpcError
-from utils import only_one
+from utils import only_one, wait_for
 
 import base64
+import os
 import pytest
 import unittest
 
@@ -77,6 +75,26 @@ def coinbase_psbt(decoded):
     return base64.b64encode(psbt).decode('ascii')
 
 
+def unpublished_coinbase_block(bitcoind, addr):
+    """A block paying its whole reward to addr, built but not published.
+
+    A miner owns his template, so he knows his coinbase before anyone else
+    sees it. Returns the block, its decoded coinbase and the output to addr.
+    """
+    block_hex = bitcoind.rpc.generateblock(addr, [], False)['hex']
+
+    # Only the coinbase is in it, so the transaction begins right after the
+    # header and the one byte transaction count. The header is 164 bytes on
+    # this chain and 80 on a classic one; the top bit of the version word
+    # says which.
+    version = int.from_bytes(bytes.fromhex(block_hex[:8]), 'little')
+    header_len = 164 if version & 0x80000000 else 80
+    coinbase = bitcoind.rpc.decoderawtransaction(block_hex[(header_len + 1) * 2:])
+    out = only_one([o for o in coinbase['vout']
+                    if o['scriptPubKey'].get('address') == addr])
+    return block_hex, coinbase, out
+
+
 @unittest.skipIf(TEST_NETWORK != 'regtest', 'coinbase maturity is a bitcoin rule')
 def test_coinbase_funding_psbt_refused_not_fatal(node_factory, bitcoind):
     """A coinbase cannot fund a channel from here, and saying so must not abort.
@@ -97,19 +115,7 @@ def test_coinbase_funding_psbt_refused_not_fatal(node_factory, bitcoind):
     amount = bitcoind.rpc.getblocktemplate({'rules': ['segwit', 'blake2b']})['coinbasevalue']
     funding_addr = l1.rpc.fundchannel_start(l2.info['id'], amount)['funding_address']
 
-    # Build the block but do not publish it: a miner owns his template, so he
-    # knows his coinbase before anyone else sees it.
-    block_hex = bitcoind.rpc.generateblock(funding_addr, [], False)['hex']
-
-    # Only the coinbase is in it, so the transaction begins right after the
-    # header and the one byte transaction count. The header is 164 bytes on
-    # this chain and 80 on a classic one; the top bit of the version word
-    # says which.
-    version = int.from_bytes(bytes.fromhex(block_hex[:8]), 'little')
-    header_len = 164 if version & 0x80000000 else 80
-    coinbase = bitcoind.rpc.decoderawtransaction(block_hex[(header_len + 1) * 2:])
-    out = only_one([o for o in coinbase['vout']
-                    if o['scriptPubKey'].get('address') == funding_addr])
+    block_hex, coinbase, out = unpublished_coinbase_block(bitcoind, funding_addr)
     assert int(round(float(out['value']) * 10**8)) == amount
 
     with pytest.raises(RpcError, match=r'Could not set PSBT version'):
@@ -135,3 +141,44 @@ def test_ordinary_channel_still_opens_at_minimum_depth(node_factory, bitcoind):
     scid = only_one(l1.rpc.listpeerchannels()['channels'])['short_channel_id']
     assert scid.split('x')[1] != '0'
     assert only_one(l1.rpc.listpeerchannels()['channels'])['state'] == 'CHANNELD_NORMAL'
+
+
+@unittest.skipIf(TEST_NETWORK != 'regtest', 'coinbase maturity is a bitcoin rule')
+@unittest.skipIf(os.getenv('TEST_DB_PROVIDER', 'sqlite3') != 'sqlite3', "sqlite3-specific DB manip")
+def test_coinbase_funded_channel_refused(node_factory, bitcoind):
+    """As the fundee, we forget a channel whose funding is a coinbase.
+
+    We cannot fund one ourselves (see above), so l1 opens an ordinary channel
+    and never broadcasts it, and l2's record of it is then pointed at a
+    coinbase paying the same 2-of-2 script: what a funder able to build one
+    would have told it in funding_created. The rest is real: a real block
+    whose coinbase pays the channel, found by l2's own funding watch.
+    """
+    l1, l2 = node_factory.get_nodes(2)
+    l1.fundwallet(10**7)
+    l1.rpc.connect(l2.info['id'], 'localhost', l2.port)
+
+    funding_addr = l1.rpc.fundchannel_start(l2.info['id'], 10**6)['funding_address']
+    prep = l1.rpc.txprepare([{funding_addr: 10**6}])
+    assert l1.rpc.fundchannel_complete(l2.info['id'], prep['psbt'])['commitments_secured']
+    wait_for(lambda: only_one(l2.rpc.listpeerchannels()['channels'])['state']
+             == 'CHANNELD_AWAITING_LOCKIN')
+    l1.stop()
+
+    block_hex, coinbase, out = unpublished_coinbase_block(bitcoind, funding_addr)
+    sats = int(round(float(out['value']) * 10**8))
+
+    l2.stop()
+    l2.db_manip("UPDATE channels SET funding_tx_id = X'{}', funding_tx_outnum = {},"
+                " funding_satoshi = {};"
+                .format(bytes.fromhex(coinbase['txid'])[::-1].hex(), out['n'], sats))
+    l2.start()
+
+    assert bitcoind.rpc.submitblock(block_hex) is None
+    l2.daemon.wait_for_log(r'Funding transaction {} is a coinbase'
+                           .format(coinbase['txid']))
+    wait_for(lambda: l2.rpc.listpeerchannels()['channels'] == [])
+
+    # Forgotten before channeld was told of a single confirmation, so it
+    # never offered channel_ready on it.
+    assert not l2.daemon.is_in_log(r'Funding tx {} depth'.format(coinbase['txid']))

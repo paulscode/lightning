@@ -140,6 +140,7 @@ const struct chainparams networks[] = {
     {.network_name = "testnet4",
      .onchain_hrp = "tb",
      .lightning_hrp = "tb",
+     .blake2b_activation_height = 150308,
      .bip70_name = "testnet4",
      // 00000000da84f2bafbbc53dee25a72ae507ff4914b867c565be350b0da8bf043
      .genesis_blockhash = {{{.u.u8 = {0x43, 0xf0, 0x8b, 0xda, 0xb0, 0x50, 0xe3,
@@ -148,7 +149,6 @@ const struct chainparams networks[] = {
 				      0x53, 0xbc, 0xfb, 0xba, 0xf2, 0x84, 0xda,
 				      0x00, 0x00, 0x00, 0x00}}}},
      .rpc_port = 48332,
-		.when_lightning_became_cool = 150308,
      .ln_port = 49735,
      .cli = "bitcoin-cli",
      .cli_args = "-testnet4",

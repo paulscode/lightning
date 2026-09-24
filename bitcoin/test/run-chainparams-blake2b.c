@@ -31,7 +31,7 @@ static const struct {
 	{"bitcoin", "bc", 961640},
 	{"regtest", "bcrt", 0},
 	{"signet", "tbs", 0},
-	{"testnet4", "tb", 0},
+	{"testnet4", "tb", 150308},
 	{"testnet", "tb", 0},
 	{"liquid-regtest", "ert", 0},
 	{"liquid", "ex", 0},
@@ -55,12 +55,14 @@ int main(int argc, char *argv[])
 	}
 
 	/* The activation height is what the gossip rule compares against, so
-	 * it must be set on the chain that changed its proof of work and left
-	 * alone everywhere else. Zero is what turns the rule off, and a stray
+	 * it must be set on the chains that changed their proof of work and
+	 * left alone everywhere else. Zero is what turns the rule off, and a stray
 	 * non-zero value on a chain that never moved would refuse every
 	 * channel announcement it ever saw. */
 	assert(chainparams_for_network("bitcoin")->blake2b_activation_height
 	       == 961640);
+	assert(chainparams_for_network("testnet4")->blake2b_activation_height
+	       == 150308);
 	assert(chainparams_for_network("regtest")->blake2b_activation_height
 	       == 0);
 

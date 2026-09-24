@@ -2636,6 +2636,31 @@ def test_gossip_does_not_announce_channel_from_before_activation(node_factory, b
              ['updates'].get('remote', {}).get('fee_base_msat') == 4321)
 
 
+def _mallory_update(node, bitcoind, scid, direction, fee_base):
+    """Send node a channel_update for scid, signed by a node with no channel."""
+    mallory = coincurve.PrivateKey(bytes([7] * 32))
+    blocknum, txnum, outnum = map(int, scid.split('x'))
+    body = (bytes.fromhex(bitcoind.rpc.getblockhash(0))[::-1]
+            + ((blocknum << 40) | (txnum << 16) | outnum).to_bytes(8, 'big')
+            + int(time.time()).to_bytes(4, 'big')
+            + bytes([1, direction])
+            + (6).to_bytes(2, 'big')
+            + (0).to_bytes(8, 'big')
+            + fee_base.to_bytes(4, 'big')
+            + (0).to_bytes(4, 'big')
+            + (10**9).to_bytes(8, 'big'))
+    sig = mallory.sign_recoverable(hashlib.sha256(hashlib.sha256(body).digest()).digest(),
+                                   hasher=None)[:64]
+
+    lconn = wire.connect(wire.PrivateKey(bytes([7] * 32)),
+                         wire.PublicKey(bytes.fromhex(node.info['id'])),
+                         'localhost', node.port)
+    # Echo node's init: its features are ones it accepts, option_blake2b included.
+    lconn.send_message(lconn.read_message())
+    lconn.send_message((258).to_bytes(2, 'big') + sig + body)
+    return lconn, mallory.public_key.format().hex()
+
+
 @unittest.skipIf(TEST_NETWORK != 'regtest', 'activation height is a bitcoin rule')
 def test_gossip_prefork_channel_update_only_from_peer(node_factory, bitcoind):
     """A channel funded before the activation takes updates from its peer only.
@@ -2644,15 +2669,17 @@ def test_gossip_prefork_channel_update_only_from_peer(node_factory, bitcoind):
     holds it, then restarts with the channel below the activation. Such a
     channel stays out of the graph, so gossipd can only check an update for it
     against whoever sent it. l2's own update must still arrive; one signed and
-    sent by a node which is not party to the channel must not.
+    sent by a node which is not party to the channel must not, and that stays
+    true for the old scid once a splice has given the channel a new one.
     """
     l1, l2 = node_factory.line_graph(2, wait_for_announce=True,
                                      opts={'allow_bad_gossip': True,
                                            'may_reconnect': True})
     scid = only_one(l1.rpc.listpeerchannels()['channels'])['short_channel_id']
+    activation = int(scid.split('x')[0]) + 10
 
     l1.stop()
-    l1.daemon.opts['dev-blake2b-activation-height'] = int(scid.split('x')[0]) + 10
+    l1.daemon.opts['dev-blake2b-activation-height'] = activation
     l1.start()
     l1.rpc.connect(l2.info['id'], 'localhost', l2.port)
 
@@ -2664,29 +2691,32 @@ def test_gossip_prefork_channel_update_only_from_peer(node_factory, bitcoind):
     wait_for(lambda: remote_fee() == 4321)
 
     # Mallory, who has no channel, signs an update for l2's side of it.
-    mallory = coincurve.PrivateKey(bytes([7] * 32))
-    blocknum, txnum, outnum = map(int, scid.split('x'))
     direction = 0 if l2.info['id'] < l1.info['id'] else 1
-    body = (bytes.fromhex(bitcoind.rpc.getblockhash(0))[::-1]
-            + ((blocknum << 40) | (txnum << 16) | outnum).to_bytes(8, 'big')
-            + int(time.time()).to_bytes(4, 'big')
-            + bytes([1, direction])
-            + (6).to_bytes(2, 'big')
-            + (0).to_bytes(8, 'big')
-            + (99999).to_bytes(4, 'big')
-            + (0).to_bytes(4, 'big')
-            + (10**9).to_bytes(8, 'big'))
-    sig = mallory.sign_recoverable(hashlib.sha256(hashlib.sha256(body).digest()).digest(),
-                                   hasher=None)[:64]
+    lconn, mallory = _mallory_update(l1, bitcoind, scid, direction, 99999)
+    l1.daemon.wait_for_log(r'{} sent us a channel update for a channel owned by {} \({}\)'
+                           .format(mallory, l2.info['id'], scid))
+    assert remote_fee() == 4321
+    lconn.connection.close()
 
-    lconn = wire.connect(wire.PrivateKey(bytes([7] * 32)),
-                         wire.PublicKey(bytes.fromhex(l1.info['id'])),
-                         'localhost', l1.port)
-    # Echo l1's init: its features are ones l1 accepts, option_blake2b included.
-    lconn.send_message(lconn.read_message())
-    lconn.send_message((258).to_bytes(2, 'big') + sig + body)
+    # Splice once past the activation: the channel's new scid is above it,
+    # but its old one still names the channel.
+    bitcoind.generate_block(activation - bitcoind.rpc.getblockcount())
+    sync_blockheight(bitcoind, [l1, l2])
+    chan_id = l1.get_channel_id(l2)
+    funds = l1.rpc.fundpsbt("111722sat", 0, 0, excess_as_change=True)
+    result = l1.rpc.splice_init(chan_id, 100000, funds['psbt'])
+    result = l1.rpc.splice_update(chan_id, result['psbt'])
+    result = l1.rpc.splice_update(chan_id, result['psbt'])
+    assert result['commitments_secured'] is True
+    result = l1.rpc.signpsbt(result['psbt'])
+    l1.rpc.splice_signed(chan_id, result['signed_psbt'])
+    bitcoind.generate_block(6, wait_for_mempool=1)
+    l1.daemon.wait_for_log(r'CHANNELD_AWAITING_SPLICE to CHANNELD_NORMAL')
+    new_scid = only_one(l1.rpc.listpeerchannels()['channels'])['short_channel_id']
+    assert int(new_scid.split('x')[0]) >= activation
 
-    l1.daemon.wait_for_log(r'{} sent us a channel update for a channel owned by {}'
-                           .format(mallory.public_key.format().hex(), l2.info['id']))
+    lconn, mallory = _mallory_update(l1, bitcoind, scid, direction, 88888)
+    l1.daemon.wait_for_log(r'{} sent us a channel update for a channel owned by {} \({}\)'
+                           .format(mallory, l2.info['id'], scid))
     assert remote_fee() == 4321
     lconn.connection.close()

@@ -1396,13 +1396,17 @@ void channel_gossip_set_remote_update(struct lightningd *ld,
 		return;
 	}
 
-	/* For public channels, it could come from anywhere: gossipd checked
-	 * it against the channel's own endpoint.  Private channels, and ones
-	 * funded before the BLAKE2b activation, which gossipd keeps out of the
-	 * graph, were only checked against whoever sent them: they must come
-	 * from gossipd itself (the old store migration!) or the correct peer. */
+	/* An update naming a public channel's current scid could come from
+	 * anywhere: gossipd checked it against the channel's own endpoint.
+	 * Anything else, a private channel, an alias, a scid from before a
+	 * splice, or a channel funded before the BLAKE2b activation, which
+	 * gossipd keeps out of the graph, was only checked against whoever
+	 * sent it: it must come from gossipd itself (the old store
+	 * migration!) or the correct peer. */
 	if ((is_private(channel)
-	     || (channel->scid && predates_blake2b(ld, *channel->scid)))
+	     || !channel->scid
+	     || !short_channel_id_eq(update->scid, *channel->scid)
+	     || predates_blake2b(ld, *channel->scid))
 	    && source
 	    && !node_id_eq(source, &channel->peer->id)) {
 		log_unusual(ld->log, "Bad gossip order: %s sent us a channel update for a "

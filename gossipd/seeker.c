@@ -435,15 +435,16 @@ static bool next_block_range(struct seeker *seeker,
 			     u32 *first_blocknum, u32 *number_of_blocks)
 {
 	const u32 current_height = seeker->daemon->current_blockheight;
+	const u32 floor = blake2b_activation(seeker->daemon);
 
 	/* We always try to get twice as many as last time. */
 	*number_of_blocks = prev_num_blocks * 2;
 
-	if (seeker->scid_probe_start > 0) {
+	if (seeker->scid_probe_start > floor) {
 		/* Enlarge probe to cover prior blocks, but twice as many. */
-		if (*number_of_blocks > seeker->scid_probe_start) {
-			*number_of_blocks = seeker->scid_probe_start;
-			*first_blocknum = 0;
+		if (*number_of_blocks > seeker->scid_probe_start - floor) {
+			*number_of_blocks = seeker->scid_probe_start - floor;
+			*first_blocknum = floor;
 		} else {
 			*first_blocknum
 				= seeker->scid_probe_start - *number_of_blocks;
@@ -786,14 +787,14 @@ static void peer_gossip_probe_scids(struct seeker *seeker)
 static void probe_random_scids(struct seeker *seeker, size_t num_blocks)
 {
 	u32 avail_blocks;
+	u32 floor = max_unsigned(chainparams->when_lightning_became_cool,
+				 blake2b_activation(seeker->daemon));
 
 	/* Ignore early blocks (unless we're before, which would be weird) */
-	if (seeker->daemon->current_blockheight
-	    < chainparams->when_lightning_became_cool)
+	if (seeker->daemon->current_blockheight < floor)
 		avail_blocks = seeker->daemon->current_blockheight;
 	else
-		avail_blocks = seeker->daemon->current_blockheight
-			- chainparams->when_lightning_became_cool;
+		avail_blocks = seeker->daemon->current_blockheight - floor;
 
 	/* <= not <: pseudorand(0) asserts, which would take gossipd and so
 	 * lightningd down, once the tip is exactly num_blocks past the
@@ -803,8 +804,7 @@ static void probe_random_scids(struct seeker *seeker, size_t num_blocks)
 		seeker->scid_probe_end = seeker->daemon->current_blockheight;
 	} else {
 		seeker->scid_probe_start
-			= chainparams->when_lightning_became_cool
-			+ pseudorand(avail_blocks - num_blocks);
+			= floor + pseudorand(avail_blocks - num_blocks);
 		seeker->scid_probe_end
 			= seeker->scid_probe_start + num_blocks - 1;
 	}
@@ -920,7 +920,9 @@ static void check_firstpeer(struct seeker *seeker)
 	}
 
 	/* Ask a random peer for all channels, in case we're missing */
-	seeker->scid_probe_start = chainparams->when_lightning_became_cool;
+	seeker->scid_probe_start
+		= max_unsigned(chainparams->when_lightning_became_cool,
+			       blake2b_activation(seeker->daemon));
 	seeker->scid_probe_end = seeker->daemon->current_blockheight;
 	if (seeker->scid_probe_start > seeker->scid_probe_end)
 		seeker->scid_probe_start = 0;

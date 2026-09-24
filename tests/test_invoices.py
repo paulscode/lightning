@@ -1092,3 +1092,17 @@ def test_invoice_maxdesc(node_factory, chainparams):
     # This should succeed.
     inv = l1.rpc.invoice(123000, 'test_invoice_maxdesc3', maxdesc)
     assert l1.rpc.decode(inv['bolt11'])['description'] == maxdesc
+
+
+def test_listinvoices_invstring_reason(node_factory):
+    """A bolt11 string that fails to decode is refused for its bolt11 reason.
+
+    It always fails as bolt12 as well, on its prefix, so reporting whichever
+    decoder ran last would tell the user nothing about the string they gave.
+    """
+    l1 = node_factory.get_node()
+
+    # The spec's "Invalid multiplier" test vector.
+    inv = 'lnbc2500x1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5xysxxatsyp3k7enxv4jsxqzpusp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs9qrsgqrrzc4cvfue4zp3hggxp47ag7xnrlr8vgcmkjxk3j5jqethnumgkpqp23z9jclu3v0a7e0aruz366e9wqdykw6dxhdzcjjhldxq0w6wgqcnu43j'
+    with pytest.raises(RpcError, match=r"Invalid invstring: Invalid amount postfix 'x'"):
+        l1.rpc.listinvoices(invstring=inv)

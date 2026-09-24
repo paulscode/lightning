@@ -1372,19 +1372,19 @@ static struct command_result *json_listinvoices(struct command *cmd,
 		if (b11)
 			payment_hash = &b11->payment_hash;
 		else {
+			const char *b11_fail = fail;
 			struct tlv_invoice *b12
 				= invoice_decode(tmpctx, invstring,
 						 strlen(invstring),
 						 cmd->ld->our_features, NULL,
 						 &fail);
 			if (!b12 || !b12->invoice_payment_hash) {
-				/* Carry the reason. "Invalid invstring" on
-				 * its own tells a user who pasted an invoice
-				 * minted by a node which has not upgraded
-				 * nothing at all, and under option_blake2b
-				 * the reason is a feature-bit message they
-				 * would never guess. pay.c has always done
-				 * this. */
+				/* Carry the reason, from whichever decoder
+				 * the string was meant for: a bolt11 string
+				 * always fails as bolt12 too, on its prefix.
+				 * pay.c has always done this. */
+				if (!bolt12_has_prefix(invstring))
+					fail = b11_fail;
 				return command_fail(cmd, JSONRPC2_INVALID_PARAMS,
 						    "Invalid invstring: %s",
 						    fail ? fail

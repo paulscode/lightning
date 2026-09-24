@@ -317,6 +317,21 @@ handled:
 	return daemon_conn_read_next(conn, daemon->connectd);
 }
 
+u32 blake2b_activation(const struct daemon *daemon)
+{
+	if (daemon->dev_blake2b_activation_height)
+		return daemon->dev_blake2b_activation_height;
+	return chainparams->blake2b_activation_height;
+}
+
+bool scid_predates_blake2b(const struct daemon *daemon,
+			   struct short_channel_id scid)
+{
+	u32 activation = blake2b_activation(daemon);
+
+	return activation != 0 && short_channel_id_blocknum(scid) < activation;
+}
+
 void tell_lightningd_peer_update(struct daemon *daemon,
 				 const struct node_id *source_peer,
 				 struct short_channel_id scid,

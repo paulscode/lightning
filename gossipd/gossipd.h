@@ -155,6 +155,15 @@ void queue_peer_msg(struct daemon *daemon,
 		    const struct node_id *peer,
 		    const u8 *msg TAKES);
 
+/* True if this short_channel_id's funding predates the BLAKE2b activation:
+ * BOLT-blake2b #7 has us ignore the announcement, so it is never public. */
+bool scid_predates_blake2b(const struct daemon *daemon,
+			   struct short_channel_id scid);
+
+/* The height at which Bitcoin's proof of work changed, or 0 where it did
+ * not: gossip for a channel funded below it is only fetched to be ignored. */
+u32 blake2b_activation(const struct daemon *daemon);
+
 /* We have an update for one of our channels (or unknown). */
 void tell_lightningd_peer_update(struct daemon *daemon,
 				 const struct node_id *source_peer,

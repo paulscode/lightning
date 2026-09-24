@@ -626,7 +626,6 @@ const char *gossmap_manage_channel_announcement(const tal_t *ctx,
 	secp256k1_ecdsa_signature node_signature_1, node_signature_2;
 	secp256k1_ecdsa_signature bitcoin_signature_1, bitcoin_signature_2;
 	u8 *features;
-	u32 activation;
 	struct bitcoin_blkid chain_hash;
 	struct short_channel_id scid;
 	struct node_id node_id_1;
@@ -681,11 +680,7 @@ const char *gossmap_manage_channel_announcement(const tal_t *ctx,
 	 * upgraded carries the same genesis hash, because it is the same
 	 * chain, so chain_hash only tells Bitcoin from some other network.
 	 */
-	activation = gm->daemon->dev_blake2b_activation_height;
-	if (activation == 0)
-		activation = chainparams->blake2b_activation_height;
-
-	if (activation != 0 && short_channel_id_blocknum(scid) < activation)
+	if (scid_predates_blake2b(gm->daemon, scid))
 		return NULL;
 
 	/* Immediately discard claims of ancient channels */
@@ -1120,8 +1115,11 @@ const char *gossmap_manage_channel_update(const tal_t *ctx,
 	}
 
 	/* Private channel_updates are not always marked as such.  So check if it's an unknown
-	 * channel, and signed by the peer itself. */
-	if (!gossmap_find_chan(gossmap, &scid)
+	 * channel, and signed by the peer itself.  A channel funded before the
+	 * BLAKE2b activation is never public either, even if a store written
+	 * before the rule still holds its announcement. */
+	if ((!gossmap_find_chan(gossmap, &scid)
+	     || scid_predates_blake2b(gm->daemon, scid))
 	    && source_peer
 	    && sigcheck_channel_update(tmpctx, source_peer, &signature, update) == NULL) {
 		tell_lightningd_peer_update(gm->daemon, source_peer,
@@ -1129,6 +1127,18 @@ const char *gossmap_manage_channel_update(const tal_t *ctx,
 					    fee_proportional_millionths,
 					    cltv_expiry_delta, htlc_minimum_msat,
 					    htlc_maximum_msat);
+		return NULL;
+	}
+
+	/* Its announcement is one we ignore, so this update belongs to nothing
+	 * we will accept.  Handing it on would ask a peer for that announcement
+	 * only to ignore it again, on every update, and would keep a channel an
+	 * older store still holds from ever ageing out. */
+	if (scid_predates_blake2b(gm->daemon, scid)) {
+		status_peer_trace(source_peer,
+				  "Ignoring channel_update for %s: funded"
+				  " before the BLAKE2b activation",
+				  fmt_short_channel_id(tmpctx, scid));
 		return NULL;
 	}
 

@@ -2549,23 +2549,36 @@ def test_gossip_ignores_announcement_from_before_activation(node_factory, bitcoi
     funding_height = int(scid.split('x')[0])
 
     # Well above the channel, so the rule applies to it.
-    # allow_bad_gossip because ignoring the announcement has a consequence:
-    # the channel_update which follows it arrives for a channel gossipd has
-    # never heard of, and gossipd calls that bad gossip order. That is the
-    # rule working, not a fault, but the framework counts it.
+    # allow_bad_gossip because with their only channel ignored, l3 knows
+    # neither l1 nor l2, and gossipd calls their node_announcements bad
+    # gossip order. The channel's own updates must not do the same: see below.
     l3 = node_factory.get_node(options={
         'dev-blake2b-activation-height': funding_height + 10,
     }, allow_bad_gossip=True)
     l3.rpc.connect(l1.info['id'], 'localhost', l1.port)
 
+    # Exactly at the channel: the first block under the new rules, so the
+    # channel is not below it and must be taken.
+    l4 = node_factory.get_node(options={
+        'dev-blake2b-activation-height': funding_height,
+    })
+    l4.rpc.connect(l1.info['id'], 'localhost', l1.port)
+
     # l1 has it and will offer it; l3 must not take it.
     wait_for(lambda: scid in [c['short_channel_id']
                               for c in l1.rpc.listchannels()['channels']])
     bitcoind.generate_block(6)
-    sync_blockheight(bitcoind, [l1, l3])
-    time.sleep(20)
+    sync_blockheight(bitcoind, [l1, l3, l4])
+    wait_for(lambda: scid in [c['short_channel_id']
+                              for c in l4.rpc.listchannels()['channels']])
+
+    # Its updates are dropped too, rather than each one sending l3 to ask a
+    # peer for the announcement it would only ignore again.
+    l3.daemon.wait_for_log(r'Ignoring channel_update for {}: funded before'
+                           .format(scid))
     assert scid not in [c['short_channel_id']
                         for c in l3.rpc.listchannels()['channels']]
+    assert not l3.daemon.is_in_log(r'Unknown channel {}'.format(scid))
 
 
 @unittest.skipIf(TEST_NETWORK != 'regtest', 'activation height is a bitcoin rule')
@@ -2584,6 +2597,10 @@ def test_gossip_does_not_announce_channel_from_before_activation(node_factory, b
     l1 = node_factory.get_node(options=opts, allow_bad_gossip=True)
     l2 = node_factory.get_node(options=opts, allow_bad_gossip=True)
     l3 = node_factory.get_node(allow_bad_gossip=True)
+
+    # l3 has no rule of its own, and hears from l1 directly, so if l1
+    # announced the channel below, l3 would take it.
+    l3.rpc.connect(l1.info['id'], 'localhost', l1.port)
 
     node_factory.join_nodes([l1, l2], wait_for_announce=False)
     below = only_one(l1.rpc.listpeerchannels()['channels'])['short_channel_id']
@@ -2608,3 +2625,9 @@ def test_gossip_does_not_announce_channel_from_before_activation(node_factory, b
     assert below not in [c['short_channel_id']
                          for c in l3.rpc.listchannels()['channels']]
     l1.daemon.wait_for_log('Not announcing .*: funded before the BLAKE2b')
+
+    # Not public is not unusable: l1 still learns l2's fees on the channel
+    # they share, the way it would for a private one.
+    l2.rpc.setchannel(l1.info['id'], feebase=4321)
+    wait_for(lambda: only_one(l1.rpc.listpeerchannels(l2.info['id'])['channels'])
+             ['updates'].get('remote', {}).get('fee_base_msat') == 4321)

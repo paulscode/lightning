@@ -106,25 +106,15 @@ here.
 
 ## 3. Gossip: a floor at the activation height
 
-A node ignores any `channel_announcement` whose `short_channel_id` names a
-block height **below 961,640**. At the activation height and above is
-ordinary.
+A node ignores any `channel_announcement` whose `short_channel_id` names a block height below the activation: **961,640** on mainnet, **150,308** on testnet4. At the activation height and above is ordinary.
 
-A funding output from before the change of proof of work exists for nodes
-that did not upgrade too, and its spend may happen where this node cannot
-see it, so a channel announced against one would sit in the graph forever. A
-channel funded after the activation elsewhere fails its funding output lookup
-here anyway; one funded before it would not.
+A funding output from before the change of proof of work exists for nodes that did not upgrade too, and its spend may happen where this node cannot see it, so a channel announced against one would sit in the graph forever. A channel funded after the activation elsewhere fails its funding output lookup here anyway; one funded before it would not.
 
-The rule applies to this node's own announcements as well, which is intended:
-a channel of ours funded before the activation is in the same position.
-The rule applies to announcements as they arrive. It does not remove entries a
-node already holds: both implementations load their graph from a local store
-without re-checking it, so a pre-activation channel accepted before the rule
-existed stays until it is pruned as a zombie. An operator who wants it gone
-sooner can delete the gossip store and resync. This is worth knowing rather
-than worth engineering around, since the store is rebuilt from the network
-anyway.
+The rule applies to this node's own announcements as well, which is intended: a channel of ours funded before the activation is in the same position.
+
+A `channel_update` for such a channel is handled as one for a private channel. Its own peer's update is still used, for route hints, but only when that peer sent it; any other is dropped, without asking a peer for an announcement the node would only ignore again. A node also does not seek gossip below the activation.
+
+The rule does not remove entries a node already holds, but with their updates dropped they are pruned as zombies within two weeks. An operator who wants them gone sooner can delete the gossip store and resync.
 
 
 ## 4. Channels: `option_unified_sigs`, bit 514 in `channel_type`

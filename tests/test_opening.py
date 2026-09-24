@@ -3457,9 +3457,13 @@ def test_zero_length_upfront_shutdown_script(node_factory, bitcoind):
     threading.Thread(target=do_close, daemon=True).start()
 
     # l2 receives the shutdown, moves to SHUTTING_DOWN and persists the script.
+    # Wait on the row rather than the state: l2 answers the shutdown itself and
+    # leaves CHANNELD_SHUTTING_DOWN within a second, and the row is written
+    # after the state change, so neither the state nor its log line is safe.
     l1.daemon.wait_for_log('dev_disconnect: \\+WIRE_SHUTDOWN')
-    wait_for(lambda: only_one(l2.rpc.listpeerchannels()['channels'])['state']
-             == 'CHANNELD_SHUTTING_DOWN')
+    wait_for(lambda: only_one(l2.db_query(
+        "SELECT shutdown_scriptpubkey_remote FROM channels;"
+    ))['shutdown_scriptpubkey_remote'] is not None)
 
     # Where did l2 store it?  A shutdown script lands in shutdown_scriptpubkey_
     # remote; remote_upfront_shutdown_script is the open-time TLV and stays NULL.

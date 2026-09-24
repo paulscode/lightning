@@ -204,6 +204,18 @@ static bool is_private(const struct channel *channel)
 	return !(channel->channel_flags & CHANNEL_FLAGS_ANNOUNCE_CHANNEL);
 }
 
+/* Funded before the BLAKE2b activation: BOLT-blake2b #7 keeps it out of the
+ * graph, ours and everyone's, whatever its announce flag says. */
+static bool predates_blake2b(const struct lightningd *ld,
+			     struct short_channel_id scid)
+{
+	u32 activation = ld->dev_blake2b_activation_height;
+
+	if (activation == 0)
+		activation = chainparams->blake2b_activation_height;
+	return activation != 0 && short_channel_id_blocknum(scid) < activation;
+}
+
 static bool is_usable(const struct channel *channel)
 {
 	if (channel_state_pre_open(channel->state))
@@ -755,7 +767,6 @@ static void send_channel_announcement(struct channel *channel)
 	struct lightningd *ld = channel->peer->ld;
 	const u8 *ca, *msg;
 	struct channel_gossip *cg = channel->channel_gossip;
-	u32 activation;
 
 	/* BOLT-blake2b #7:
 	 *   - if the `short_channel_id`'s block height is less than 961,640,
@@ -768,12 +779,7 @@ static void send_channel_announcement(struct channel *channel)
 	 * broadcast_new_gossip does not wait for that answer before sending
 	 * the message to every peer, so without this the announcement leaves
 	 * this node anyway. Stop before asking hsmd to sign it. */
-	activation = ld->dev_blake2b_activation_height;
-	if (activation == 0)
-		activation = chainparams->blake2b_activation_height;
-
-	if (activation != 0
-	    && short_channel_id_blocknum(*channel->scid) < activation) {
+	if (predates_blake2b(ld, *channel->scid)) {
 		log_debug(channel->log,
 			  "Not announcing %s: funded before the BLAKE2b"
 			  " activation height",
@@ -1390,10 +1396,13 @@ void channel_gossip_set_remote_update(struct lightningd *ld,
 		return;
 	}
 
-	/* For public channels, it could come from anywhere.  Private
-	 * channels must come from gossipd itself (the old store
-	 * migration!) or the correct peer. */
-	if (is_private(channel)
+	/* For public channels, it could come from anywhere: gossipd checked
+	 * it against the channel's own endpoint.  Private channels, and ones
+	 * funded before the BLAKE2b activation, which gossipd keeps out of the
+	 * graph, were only checked against whoever sent them: they must come
+	 * from gossipd itself (the old store migration!) or the correct peer. */
+	if ((is_private(channel)
+	     || (channel->scid && predates_blake2b(ld, *channel->scid)))
 	    && source
 	    && !node_id_eq(source, &channel->peer->id)) {
 		log_unusual(ld->log, "Bad gossip order: %s sent us a channel update for a "

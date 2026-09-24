@@ -9,10 +9,13 @@ from utils import (
     first_scid, generate_gossip_store, GenChannel
 )
 
+import coincurve
+import hashlib
 import json
 import logging
 import math
 import os
+import pyln.proto.wire as wire
 import pytest
 import struct
 import subprocess
@@ -2631,3 +2634,59 @@ def test_gossip_does_not_announce_channel_from_before_activation(node_factory, b
     l2.rpc.setchannel(l1.info['id'], feebase=4321)
     wait_for(lambda: only_one(l1.rpc.listpeerchannels(l2.info['id'])['channels'])
              ['updates'].get('remote', {}).get('fee_base_msat') == 4321)
+
+
+@unittest.skipIf(TEST_NETWORK != 'regtest', 'activation height is a bitcoin rule')
+def test_gossip_prefork_channel_update_only_from_peer(node_factory, bitcoind):
+    """A channel funded before the activation takes updates from its peer only.
+
+    l1 announced the channel before it knew the rule, so its gossip store still
+    holds it, then restarts with the channel below the activation. Such a
+    channel stays out of the graph, so gossipd can only check an update for it
+    against whoever sent it. l2's own update must still arrive; one signed and
+    sent by a node which is not party to the channel must not.
+    """
+    l1, l2 = node_factory.line_graph(2, wait_for_announce=True,
+                                     opts={'allow_bad_gossip': True,
+                                           'may_reconnect': True})
+    scid = only_one(l1.rpc.listpeerchannels()['channels'])['short_channel_id']
+
+    l1.stop()
+    l1.daemon.opts['dev-blake2b-activation-height'] = int(scid.split('x')[0]) + 10
+    l1.start()
+    l1.rpc.connect(l2.info['id'], 'localhost', l2.port)
+
+    def remote_fee():
+        chan = only_one(l1.rpc.listpeerchannels(l2.info['id'])['channels'])
+        return chan['updates'].get('remote', {}).get('fee_base_msat')
+
+    l2.rpc.setchannel(l1.info['id'], feebase=4321)
+    wait_for(lambda: remote_fee() == 4321)
+
+    # Mallory, who has no channel, signs an update for l2's side of it.
+    mallory = coincurve.PrivateKey(bytes([7] * 32))
+    blocknum, txnum, outnum = map(int, scid.split('x'))
+    direction = 0 if l2.info['id'] < l1.info['id'] else 1
+    body = (bytes.fromhex(bitcoind.rpc.getblockhash(0))[::-1]
+            + ((blocknum << 40) | (txnum << 16) | outnum).to_bytes(8, 'big')
+            + int(time.time()).to_bytes(4, 'big')
+            + bytes([1, direction])
+            + (6).to_bytes(2, 'big')
+            + (0).to_bytes(8, 'big')
+            + (99999).to_bytes(4, 'big')
+            + (0).to_bytes(4, 'big')
+            + (10**9).to_bytes(8, 'big'))
+    sig = mallory.sign_recoverable(hashlib.sha256(hashlib.sha256(body).digest()).digest(),
+                                   hasher=None)[:64]
+
+    lconn = wire.connect(wire.PrivateKey(bytes([7] * 32)),
+                         wire.PublicKey(bytes.fromhex(l1.info['id'])),
+                         'localhost', l1.port)
+    # Echo l1's init: its features are ones l1 accepts, option_blake2b included.
+    lconn.send_message(lconn.read_message())
+    lconn.send_message((258).to_bytes(2, 'big') + sig + body)
+
+    l1.daemon.wait_for_log(r'{} sent us a channel update for a channel owned by {}'
+                           .format(mallory.public_key.format().hex(), l2.info['id']))
+    assert remote_fee() == 4321
+    lconn.connection.close()

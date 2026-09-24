@@ -211,8 +211,11 @@ def test_unified_onchain_htlc_success(node_factory, bitcoind):
     t.daemon = True
     t.start()
 
-    b.daemon.wait_for_log('sendrawtx exit 0')
-    bitcoind.generate_block(1, wait_for_mempool=1)
+    # Mine the commitment together with its anchor spend: the HTLC claim draws
+    # on the same wallet coin, so an anchor spend left in the mempool would
+    # refuse it until another block came.
+    b.daemon.wait_for_log('Creating anchor spend for local commit tx')
+    bitcoind.generate_block(1, wait_for_mempool=2)
     b.daemon.wait_for_log(' to ONCHAIN')
     a.daemon.wait_for_log(' to ONCHAIN')
 

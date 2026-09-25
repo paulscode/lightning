@@ -769,9 +769,11 @@ static void send_channel_announcement(struct channel *channel)
 	struct channel_gossip *cg = channel->channel_gossip;
 
 	/* BOLT-blake2b #7:
-	 *   - if the `short_channel_id`'s block height is less than 961,640,
-	 *     the first block under the BLAKE2b rules:
-	 *     - MUST ignore the message ...
+	 *   - if the `short_channel_id`'s block height is below the BLAKE2b
+	 *     activation height for the chain:
+	 *     - MUST ignore the message: that funding output predates the
+	 *       change of proof of work, so its spend may not be visible to
+	 *       this node.
 	 *     - MUST apply this to a `channel_announcement` it generates
 	 *       itself.
 	 *
@@ -1396,8 +1398,10 @@ void channel_gossip_set_remote_update(struct lightningd *ld,
 		return;
 	}
 
-	/* An update naming a public channel's current scid could come from
-	 * anywhere: gossipd checked it against the channel's own endpoint.
+	/* This is not specific to BLAKE2b: aliases and pre-splice scids need
+	 * it on any chain.  An update naming a public channel's current scid
+	 * could come from anywhere: gossipd checked it against the channel's
+	 * own endpoint.
 	 * Anything else, a private channel, an alias, a scid from before a
 	 * splice, or a channel funded before the BLAKE2b activation, which
 	 * gossipd keeps out of the graph, was only checked against whoever

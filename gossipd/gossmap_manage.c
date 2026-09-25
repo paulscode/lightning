@@ -671,10 +671,10 @@ const char *gossmap_manage_channel_announcement(const tal_t *ctx,
 
 	/* BOLT-blake2b #7:
 	 *   - if the `short_channel_id`'s block height is below the BLAKE2b
-	 *     activation, 961,640:
+	 *     activation height for the chain:
 	 *     - MUST ignore the message: that funding output predates the
-	 *       change of proof of work and so exists for nodes that did not
-	 *       upgrade too, whose spends this receiver does not see.
+	 *       change of proof of work, so its spend may not be visible to
+	 *       this node.
 	 *
 	 * The chain_hash check above cannot do this. A node which has not
 	 * upgraded carries the same genesis hash, because it is the same
@@ -1130,10 +1130,19 @@ const char *gossmap_manage_channel_update(const tal_t *ctx,
 		return NULL;
 	}
 
-	/* Its announcement is one we ignore, so this update belongs to nothing
-	 * we will accept.  Handing it on would ask a peer for that announcement
-	 * only to ignore it again, on every update, and would keep a channel an
-	 * older store still holds from ever ageing out. */
+	/* BOLT-blake2b #7:
+	 *   - if the `short_channel_id`'s block height is below the BLAKE2b
+	 *   activation height for the chain:
+	 *     - MUST treat the channel as unannounced: MAY use an update sent
+	 *     by its own peer on that channel, for that peer's forwarding
+	 *     parameters, and MUST ignore any other.
+	 *     - MUST NOT request the corresponding `channel_announcement`
+	 *     because of it.
+	 *
+	 * Our peer's own update went down the private path above.  Handing
+	 * this one on would ask a peer for the announcement only to ignore it
+	 * again, on every update, and would keep a channel an older store still
+	 * holds from ever ageing out. */
 	if (scid_predates_blake2b(gm->daemon, scid)) {
 		status_peer_trace(source_peer,
 				  "Ignoring channel_update for %s: funded"

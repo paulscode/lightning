@@ -2570,7 +2570,14 @@ static void channel_funding_found(struct lightningd *ld,
 	 * its HTLCs expire.  Transaction 0 of a block is the coinbase, and we
 	 * can only be the fundee of one, having put nothing in: forget it
 	 * before channeld hears a single confirmation.  A zero-conf channel
-	 * is its peer's to trust, and is already in use. */
+	 * is its peer's to trust, and is already in use.
+	 *
+	 * Only this v1 path needs it: a dual-funded or splice funding
+	 * transaction is built from inputs the two sides add, and a coinbase
+	 * has none.  A coinbase is often mined before this watch exists, since
+	 * the funding script needs both keys; then we never see it here, and
+	 * never lock in either.  That is safe, and a restart's rescan or the
+	 * fundee timeout clears the channel. */
 	if (loc->index == 0
 	    && channel->opener == REMOTE
 	    && channel->state == CHANNELD_AWAITING_LOCKIN
